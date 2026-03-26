@@ -121,14 +121,6 @@ class _ServicesBrowseScreenState extends State<ServicesBrowseScreen> {
     ],
   };
 
-  late List<Map<String, dynamic>> _filteredServices;
-
-  @override
-  void initState() {
-    super.initState();
-    _filteredServices = services;
-  }
-
   void _filterServices() {
     setState(() {
       _filteredServices = _allServices.where((service) {
