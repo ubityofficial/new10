@@ -1,0 +1,107 @@
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+ios/Flutter/Flutter.framework/
+ios/Flutter/Flutter.podspec
+
+# Exceptions to above rules.
+!/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
+
+# iOS/macOS
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/**/.sconsign.dblite
+**/ios/**/.tags*
+**/ios/**/.vagrant/
+**/ios/**/DerivedData/
+**/ios/**/Icon?
+**/ios/**/Icon??
+**/ios/**/Icon???
+**/ios/**/Icon????
+**/ios/**/Icon?????
+**/ios/**/.idea/
+**/ios/**/*.hmap
+**/ios/**/*.ipa
+**/ios/**/.symlinks/
+**/ios/**/*.lock
+**/ios/**/*.xcconfig
+**/ios/**/*.xcworkspace
+**/ios/**/xcuser.xcuserdatad
+**/ios/**/Pods/
+**/ios/Runner.xcworkspace/Pods/
+
+# Android/java
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.jks
+
+# Web
+
+# macOS
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Windows
+windows/flutter/generated_plugins.cmake
+windows/flutter/generated_plugin_syms.asm
+windows/flutter/generated_plugins.cc
+windows/flutter/plugins/generated_plugins_cmake.cc
+windows/flutter/plugins/windows_plugins.h
+windows/flutter/plugins/windows_plugins_plugin_c_api.cc
+windows/flutter/plugins/plugins_list.txt
+windows/flutter/plugins/url_launcher_windows/generated_plugin_registrant.cc
+windows/flutter/plugins/url_launcher_windows/generated_plugin_syms.asm
+
+# Linux
+linux/flutter/generated_plugins.cmake
+linux/flutter/generated_plugin_syms.cc
+linux/flutter/generated_plugins.cc
+linux/flutter/plugins/generated_plugins_cmake.cc
+linux/plugins_list.txt
+
+# Coverage
+coverage/
+
+# Symbols
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Web related
+
+# Visibility files
+.dart_tool/
+
+# VS Code
+.vscode/
+*.swp
+*.swo
+*~
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Mac
+.DS_Store
+
+# Environment
+.env
+.env.*

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: new10-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: SUPABASE_URL
+        scope: runtime
+        value: ${SUPABASE_URL}
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        scope: runtime
+        value: ${SUPABASE_SERVICE_ROLE_KEY}
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
