@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
+import '../../services/service_api_client.dart';
+import '../../models/service_model.dart';
 
 class ServicesBrowseScreen extends StatefulWidget {
   const ServicesBrowseScreen({super.key});
@@ -11,50 +13,43 @@ class ServicesBrowseScreen extends StatefulWidget {
 class _ServicesBrowseScreenState extends State<ServicesBrowseScreen> {
   String _selectedCategory = 'All';
   final TextEditingController _searchController = TextEditingController();
+  
+  late List<Map<String, dynamic>> _filteredServices = [];
+  List<Service> _allServices = [];
+  bool _isLoading = true;
+  String? _error;
 
-  // Mock services data
-  final List<Map<String, dynamic>> services = [
-    {
-      'id': '1',
-      'name': 'Excavator Rental',
-      'category': 'Heavy Machinery',
-      'image1': '🚜',
-      'image2': '🔧',
-      'description': 'Heavy-duty excavators for construction sites',
-      'rating': 4.8,
-      'reviews': 156,
-    },
-    {
-      'id': '2',
-      'name': 'Water Tanker Service',
-      'category': 'Water Supply',
-      'image1': '💧',
-      'image2': '🚛',
-      'description': 'Reliable water supply & transportation services',
-      'rating': 4.6,
-      'reviews': 89,
-    },
-    {
-      'id': '3',
-      'name': 'Crane Services',
-      'category': 'Heavy Machinery',
-      'image1': '🏗️',
-      'image2': '⛏️',
-      'description': 'Professional lifting & hoisting solutions',
-      'rating': 4.9,
-      'reviews': 203,
-    },
-    {
-      'id': '4',
-      'name': 'Concrete Mixer',
-      'category': 'Equipment',
-      'image1': '🔴',
-      'image2': '⚙️',
-      'description': 'Portable concrete mixers for construction',
-      'rating': 4.5,
-      'reviews': 67,
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadServices();
+  }
+
+  Future<void> _loadServices() async {
+    try {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+
+      final services = await ServiceApiClient.getServices();
+      
+      setState(() {
+        _allServices = services;
+        _filteredServices = services
+            .map((service) => service.toMap())
+            .toList();
+        _isLoading = false;
+      });
+
+      _filterServices();
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load services: $e';
+        _isLoading = false;
+      });
+    }
+  }
 
   // Mock vendor services data
   final Map<String, List<Map<String, dynamic>>> vendorServicesList = {
@@ -136,16 +131,15 @@ class _ServicesBrowseScreenState extends State<ServicesBrowseScreen> {
 
   void _filterServices() {
     setState(() {
-      _filteredServices = services.where((service) {
+      _filteredServices = _allServices.where((service) {
         final matchesCategory =
-            _selectedCategory == 'All' || service['category'] == _selectedCategory;
+            _selectedCategory == 'All' || service.category == _selectedCategory;
         final matchesSearch = _searchController.text.isEmpty ||
-            service['name']
-                .toString()
+            service.name
                 .toLowerCase()
                 .contains(_searchController.text.toLowerCase());
         return matchesCategory && matchesSearch;
-      }).toList();
+      }).map((service) => service.toMap()).toList();
     });
   }
 
@@ -243,38 +237,81 @@ class _ServicesBrowseScreenState extends State<ServicesBrowseScreen> {
             ),
             // Services List
             Expanded(
-              child: _filteredServices.isEmpty
+              child: _isLoading
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: Colors.grey.shade300,
-                          ),
+                          const CircularProgressIndicator(),
                           const SizedBox(height: 16),
                           Text(
-                            'No services found',
-                            style: Theme.of(context).textTheme.bodyLarge,
+                            'Loading services...',
+                            style: Theme.of(context).textTheme.bodyMedium,
                           ),
                         ],
                       ),
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _filteredServices.length,
-                      itemBuilder: (context, index) {
-                        final service = _filteredServices[index];
-                        return ServiceListCard(
-                          service: service,
-                          vendorList: vendorServicesList[service['id']] ?? [],
-                          onTap: () {
-                            _showVendorsList(service);
-                          },
-                        );
-                      },
-                    ),
+                  : _error != null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 64,
+                                color: Colors.red.shade300,
+                              ),
+                              const SizedBox(height: 16),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  _error!,
+                                  textAlign: TextAlign.center,
+                                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _loadServices,
+                                child: const Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _filteredServices.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.search_off,
+                                    size: 64,
+                                    color: Colors.grey.shade300,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No services found',
+                                    style: Theme.of(context).textTheme.bodyLarge,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _filteredServices.length,
+                              itemBuilder: (context, index) {
+                                final service = _filteredServices[index];
+                                return ServiceListCard(
+                                  service: service,
+                                  vendorList: vendorServicesList[service['id']] ?? [],
+                                  onTap: () {
+                                    _showVendorsList(service);
+                                  },
+                                );
+                              },
+                            ),
             ),
           ],
         ),
