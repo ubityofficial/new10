@@ -8,21 +8,29 @@ class ServiceApiClient {
   /// Fetch all services from the backend
   static Future<List<Service>> getServices() async {
     try {
+      final url = '$baseUrl/services';
+      print('🔵 Fetching services from: $url');
+      
       final response = await http.get(
-        Uri.parse('$baseUrl/services'),
+        Uri.parse(url),
         headers: {
           'Content-Type': 'application/json',
         },
       ).timeout(const Duration(seconds: 10));
 
+      print('🟢 Response status: ${response.statusCode}');
+      print('🟢 Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = json.decode(response.body);
+        print('🟢 Parsed ${jsonData.length} services');
         return jsonData.map((item) => Service.fromJson(item)).toList();
       } else {
+        print('🔴 Error: ${response.statusCode} - ${response.body}');
         throw Exception('Failed to load services: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching services: $e');
+      print('🔴 Exception fetching services: $e');
       return [];
     }
   }
