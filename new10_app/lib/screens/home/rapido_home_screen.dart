@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'dart:ui';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../services/service_api_client.dart';
+import '../../models/service_model.dart';
 
 class RapidoHomeScreen extends StatefulWidget {
   const RapidoHomeScreen({super.key});
@@ -17,6 +19,11 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   final TextEditingController _searchController = TextEditingController();
   int _selectedCategoryIndex = 0;
   bool _showPromoCard = true;
+  
+  // API State
+  List<Service> _apiServices = [];
+  bool _isLoadingServices = false;
+  String? _servicesError;
 
   // Mock data
   final List<Map<String, dynamic>> categories = [
@@ -59,6 +66,32 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
     {'title': 'Crane 25T', 'description': 'Tower Crane'},
     {'title': 'Compressor', 'description': '100 CFM'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServices();
+  }
+
+  Future<void> _loadServices() async {
+    setState(() {
+      _isLoadingServices = true;
+      _servicesError = null;
+    });
+
+    try {
+      final services = await ServiceApiClient.getServices();
+      setState(() {
+        _apiServices = services;
+        _isLoadingServices = false;
+      });
+    } catch (e) {
+      setState(() {
+        _servicesError = 'Failed to load services: $e';
+        _isLoadingServices = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -439,22 +472,40 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
         // Small cards (right) - 40%
         Expanded(
           flex: 4,
-          child: Column(
-            children: [
-              _buildQuickServiceCard('JCB Booking', Icons.construction),
-              const SizedBox(height: 12),
-              _buildQuickServiceCard('Crane Services', Icons.apartment),
-              const SizedBox(height: 12),
-              _buildQuickServiceCard('Road Roller', Icons.directions_car),
-            ],
-          ),
+          child: _isLoadingServices
+              ? const Center(child: CircularProgressIndicator())
+              : _servicesError != null
+                  ? Center(
+                      child: Text(
+                        _servicesError!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    )
+                  : _apiServices.isEmpty
+                      ? const Center(child: Text('No services available'))
+                      : Column(
+                          children: _apiServices.take(3).map((service) {
+                            return Column(
+                              children: [
+                                _buildQuickServiceCard(
+                                  service.name,
+                                  Icons.category,
+                                  service: service,
+                                ),
+                                if (_apiServices.indexOf(service) < 2)
+                                  const SizedBox(height: 12),
+                              ],
+                            );
+                          }).toList(),
+                        ),
         ),
       ],
     );
   }
 
   // Quick Service Card
-  Widget _buildQuickServiceCard(String title, IconData icon) {
+  Widget _buildQuickServiceCard(String title, IconData icon, {Service? service}) {
     return GestureDetector(
       onTap: () {},
       child: Container(
@@ -492,13 +543,26 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                  if (service != null && service.category.isNotEmpty)
+                    Text(
+                      service.category,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                ],
               ),
             ),
             Icon(
