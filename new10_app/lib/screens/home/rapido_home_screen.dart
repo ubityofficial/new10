@@ -74,6 +74,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   }
 
   Future<void> _loadServices() async {
+    if (!mounted) return;
     setState(() {
       _isLoadingServices = true;
       _servicesError = null;
@@ -81,11 +82,13 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
 
     try {
       final services = await ServiceApiClient.getServices();
+      if (!mounted) return;
       setState(() {
         _apiServices = services;
         _isLoadingServices = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _servicesError = 'Failed to load services: $e';
         _isLoadingServices = false;

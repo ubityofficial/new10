@@ -16,7 +16,7 @@ class ServiceApiClient {
         headers: {
           'Content-Type': 'application/json',
         },
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
 
       print('🟢 Response status: ${response.statusCode}');
       print('🟢 Response body: ${response.body}');
