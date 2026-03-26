@@ -141,6 +141,10 @@ const ServicesManagement = () => {
     setFormData({ ...formData, [name]: value } as FormDataType);
   };
 
+  const handleCategoryChange = (e: SelectChangeEvent<string>) => {
+    setFormData({ ...formData, category: e.target.value });
+  };
+
   const handleSave = async () => {
     try {
       setError('');
