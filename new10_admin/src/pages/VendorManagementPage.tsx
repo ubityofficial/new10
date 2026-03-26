@@ -113,16 +113,16 @@ const VendorManagementPage: React.FC = () => {
   const handleActionConfirm = () => {
     if (!selectedVendor || !actionType) return
 
-    const updatedVendors = vendors.map((vendor) => {
+    const updatedVendors: VendorData[] = vendors.map((vendor) => {
       if (vendor.id === selectedVendor.id) {
         if (actionType === 'approve') {
-          return { ...vendor, status: 'approved' }
+          return { ...vendor, status: 'approved' as const }
         } else if (actionType === 'reject') {
-          return { ...vendor, status: 'blocked' }
+          return { ...vendor, status: 'blocked' as const }
         } else if (actionType === 'suspend') {
-          return { ...vendor, status: 'suspended' }
+          return { ...vendor, status: 'suspended' as const }
         } else if (actionType === 'block') {
-          return { ...vendor, status: 'blocked' }
+          return { ...vendor, status: 'blocked' as const }
         } else if (actionType === 'verify') {
           return { ...vendor, verified: true }
         }

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
+import { SelectChangeEvent } from '@mui/material';
 import {
   Paper,
   Table,
@@ -45,7 +46,7 @@ interface FormDataType {
   image2: File | null;
 }
 
-const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const ServicesManagement = () => {
   const [services, setServices] = useState<Service[]>([]);
@@ -365,7 +366,7 @@ const ServicesManagement = () => {
             <Select
               name="category"
               value={formData.category}
-              onChange={handleInputChange}
+              onChange={handleCategoryChange}
               label="Category"
             >
               {CATEGORIES.map((cat) => (

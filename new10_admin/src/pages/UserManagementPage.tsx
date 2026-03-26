@@ -107,14 +107,14 @@ const UserManagementPage: React.FC = () => {
   const handleActionConfirm = () => {
     if (!selectedUser || !actionType) return
 
-    const updatedUsers = users.map((user) => {
+    const updatedUsers: UserData[] = users.map((user) => {
       if (user.id === selectedUser.id) {
         if (actionType === 'activate') {
-          return { ...user, status: 'active' }
+          return { ...user, status: 'active' as const }
         } else if (actionType === 'suspend') {
-          return { ...user, status: 'suspended' }
+          return { ...user, status: 'suspended' as const }
         } else if (actionType === 'block') {
-          return { ...user, status: 'blocked' }
+          return { ...user, status: 'blocked' as const }
         }
       }
       return user
