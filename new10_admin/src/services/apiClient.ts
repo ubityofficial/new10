@@ -5,7 +5,7 @@ class ApiClient {
   private client: AxiosInstance
 
   constructor() {
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+    const baseURL = (import.meta.env as any).VITE_API_URL || 'http://localhost:3000/api'
 
     this.client = axios.create({
       baseURL,

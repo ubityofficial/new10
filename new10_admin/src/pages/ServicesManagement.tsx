@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect } from 'react';
+import axios, { AxiosError } from 'axios';
 import {
   Paper,
   Table,
@@ -15,7 +15,6 @@ import {
   IconButton,
   Card,
   CardMedia,
-  CardContent,
   Grid,
   CircularProgress,
   Alert,
@@ -29,16 +28,33 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import MainLayout from '../components/MainLayout';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+interface Service {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  image1?: string;
+  image2?: string;
+}
+
+interface FormDataType {
+  name: string;
+  description: string;
+  category: string;
+  image1: File | null;
+  image2: File | null;
+}
+
+const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:5000/api';
 
 const ServicesManagement = () => {
-  const [services, setServices] = useState([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [openDialog, setOpenDialog] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormDataType>({
     name: '',
     description: '',
     category: '',
@@ -46,8 +62,8 @@ const ServicesManagement = () => {
     image2: null,
   });
   const [imagePreview, setImagePreview] = useState({
-    image1: null,
-    image2: null,
+    image1: null as string | null,
+    image2: null as string | null,
   });
 
   const CATEGORIES = ['Heavy Machinery', 'Utilities', 'Transport', 'Equipment', 'Tools'];
@@ -60,17 +76,18 @@ const ServicesManagement = () => {
   const fetchServices = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/services`);
+      const response = await axios.get<Service[]>(`${API_BASE_URL}/services`);
       setServices(response.data || []);
     } catch (err) {
-      setError('Failed to fetch services: ' + (err.response?.data?.message || err.message));
+      const error = err as AxiosError<any>;
+      setError('Failed to fetch services: ' + (error.response?.data?.message || error.message));
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenDialog = (service = null) => {
+  const handleOpenDialog = (service: Service | null = null) => {
     if (service) {
       setEditingId(service.id);
       setFormData({
@@ -81,8 +98,8 @@ const ServicesManagement = () => {
         image2: null,
       });
       setImagePreview({
-        image1: service.image1,
-        image2: service.image2,
+        image1: service.image1 || null,
+        image2: service.image2 || null,
       });
     } else {
       setEditingId(null);
@@ -104,21 +121,23 @@ const ServicesManagement = () => {
     setError('');
   };
 
-  const handleImageChange = (e, imageField) => {
-    const file = e.target.files[0];
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, imageField: 'image1' | 'image2') => {
+    const file = e.target.files?.[0];
     if (file) {
       setFormData({ ...formData, [imageField]: file });
       const reader = new FileReader();
       reader.onload = (event) => {
-        setImagePreview({ ...imagePreview, [imageField]: event.target.result });
+        const result = event.target?.result as string;
+        setImagePreview({ ...imagePreview, [imageField]: result });
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | { name?: string; value: unknown }>) => {
+    const target = e.target as HTMLInputElement | HTMLSelectElement;
+    const { name, value } = target;
+    setFormData({ ...formData, [name]: value } as FormDataType);
   };
 
   const handleSave = async () => {
@@ -151,10 +170,9 @@ const ServicesManagement = () => {
         uploadFormData.append('image2', formData.image2);
       }
 
-      let response;
       if (editingId) {
         // Update service
-        response = await axios.put(
+        await axios.put(
           `${API_BASE_URL}/services/${editingId}`,
           uploadFormData,
           { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -163,7 +181,7 @@ const ServicesManagement = () => {
       } else {
         // Create new service
         uploadFormData.append('id', serviceId);
-        response = await axios.post(
+        await axios.post(
           `${API_BASE_URL}/services`,
           uploadFormData,
           { headers: { 'Content-Type': 'multipart/form-data' } }
@@ -175,14 +193,15 @@ const ServicesManagement = () => {
       fetchServices();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Error: ' + (err.response?.data?.message || err.message));
+      const error = err as AxiosError<any>;
+      setError('Error: ' + (error.response?.data?.message || error.message));
       console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (serviceId) => {
+  const handleDelete = async (serviceId: string) => {
     if (!window.confirm('Are you sure you want to delete this service?')) return;
 
     try {
@@ -192,7 +211,8 @@ const ServicesManagement = () => {
       fetchServices();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Error: ' + (err.response?.data?.message || err.message));
+      const error = err as AxiosError<any>;
+      setError('Error: ' + (error.response?.data?.message || error.message));
       console.error(err);
     } finally {
       setLoading(false);
@@ -267,7 +287,7 @@ const ServicesManagement = () => {
                               alt="img1"
                               style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }}
                               onError={(e) => {
-                                e.target.src = 'https://via.placeholder.com/40';
+                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
                               }}
                             />
                           )}
@@ -277,7 +297,7 @@ const ServicesManagement = () => {
                               alt="img2"
                               style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover' }}
                               onError={(e) => {
-                                e.target.src = 'https://via.placeholder.com/40';
+                                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40';
                               }}
                             />
                           )}
