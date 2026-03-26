@@ -29,7 +29,7 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import MainLayout from '../components/MainLayout';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://new10-yk1r.onrender.com/api';
 
 const ServicesManagement = () => {
   const [services, setServices] = useState([]);
