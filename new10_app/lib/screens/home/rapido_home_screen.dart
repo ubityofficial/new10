@@ -697,57 +697,119 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
 
   // Category Scroll
   Widget _buildCategoryScroll() {
-    final categoryIcons = {
-      'Excavators': Icons.construction,
-      'Cranes': Icons.apartment,
-      'Water Tankers': Icons.water,
-      'Bulldozers': Icons.directions_car,
-      'Road Rollers': Icons.engineering,
-    };
-
-    return SizedBox(
-      height: 120,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(right: 16),
-        itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = _selectedCategoryIndex == index;
-          final icon = categoryIcons[category['name']] ?? Icons.category;
-
-          return Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedCategoryIndex = index),
-              child: Column(
-                children: [
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      color: isSelected
-                          ? AppTheme.primaryColor.withOpacity(0.2)
-                          : Colors.grey.shade100,
-                      border: Border.all(
-                        color: isSelected
-                            ? AppTheme.primaryColor
-                            : Colors.grey.shade300,
-                        width: isSelected ? 2 : 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 6,
-                        ),
-                      ],
+    // Display all API services in a 2-column grid layout
+    return _isLoadingServices
+        ? const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(),
+            ),
+          )
+        : _servicesError != null
+            ? Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    'Error loading services',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.red.shade600),
+                  ),
+                ),
+              )
+            : _apiServices.isEmpty
+                ? const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Text('No services available'),
                     ),
-                    child: Center(
-                      child: Icon(
-                        icon,
-                        size: 36,
-                        color: isSelected
+                  )
+                : GridView.count(
+                    crossAxisCount: 2,
+                    childAspectRatio: 1.1,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: _apiServices.map((service) {
+                      return GestureDetector(
+                        onTap: () {},
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Service Image
+                            Expanded(
+                              child: Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: Colors.grey.shade200,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.08),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                                child: service.image1 != null &&
+                                        service.image1!.isNotEmpty
+                                    ? ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        child: Image.network(
+                                          service.image1!,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return Container(
+                                              color: Colors.grey.shade300,
+                                              child: Icon(
+                                                Icons.image_not_supported,
+                                                color: Colors.grey.shade600,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      )
+                                    : Container(
+                                        color: Colors.grey.shade300,
+                                        child: Icon(
+                                          Icons.category,
+                                          size: 32,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Service Name
+                            Text(
+                              service.name,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            // Service Category
+                            Text(
+                              service.category,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+  }
                             ? AppTheme.primaryColor
                             : Colors.grey.shade600,
                       ),
