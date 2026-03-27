@@ -56,4 +56,33 @@ class ServiceApiClient {
       return null;
     }
   }
+
+  /// Fetch app settings (banner image URL, etc.)
+  static Future<Map<String, dynamic>> getAppSettings() async {
+    try {
+      final url = '$baseUrl/settings';
+      print('🔵 Fetching app settings from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      print('🟢 Settings response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        print('🟢 App settings loaded successfully');
+        return jsonData;
+      } else {
+        print('🔴 Error fetching settings: ${response.statusCode}');
+        return {};
+      }
+    } catch (e) {
+      print('🔴 Exception fetching app settings: $e');
+      return {};
+    }
+  }
 }

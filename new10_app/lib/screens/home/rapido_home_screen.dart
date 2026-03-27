@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../services/service_api_client.dart';
+import '../../services/image_cache_service.dart';
 import '../../models/service_model.dart';
+import '../listing/service_listing_page.dart';
+import 'all_services_page.dart';
 
 class RapidoHomeScreen extends StatefulWidget {
   const RapidoHomeScreen({super.key});
@@ -24,6 +29,16 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   List<Service> _apiServices = [];
   bool _isLoadingServices = false;
   String? _servicesError;
+
+  // Banner Settings
+  String _bannerImageUrl = 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80';
+  bool _isLoadingBannerSettings = false;
+
+  // Offer/Promotion Data
+  String? _offerCode;
+  int? _discountPercent;
+  String? _offerDescription;
+  bool _isLoadingOffer = false;
 
   // Mock data
   final List<Map<String, dynamic>> categories = [
@@ -71,6 +86,8 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   void initState() {
     super.initState();
     _loadServices();
+    _loadBannerSettings();
+    _loadPromotions();
   }
 
   Future<void> _loadServices() async {
@@ -87,12 +104,81 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
         _apiServices = services;
         _isLoadingServices = false;
       });
+
+      // Preload images for faster display
+      _preloadServiceImages(services);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _servicesError = 'Failed to load services: $e';
         _isLoadingServices = false;
       });
+    }
+  }
+
+  Future<void> _preloadServiceImages(List<Service> services) async {
+    final imageCacheService = ImageCacheService();
+    
+    // Preload first 5 service images
+    for (var i = 0; i < services.length && i < 5; i++) {
+      if (services[i].image1 != null && services[i].image1!.isNotEmpty) {
+        try {
+          imageCacheService.preloadImage(services[i].image1!);
+        } catch (e) {
+          // Silently fail
+        }
+      }
+    }
+  }
+
+  Future<void> _loadBannerSettings() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingBannerSettings = true;
+    });
+
+    try {
+      final response = await ServiceApiClient.getAppSettings();
+      if (!mounted) return;
+      setState(() {
+        _bannerImageUrl = response['bannerImageUrl'] ?? _bannerImageUrl;
+        _isLoadingBannerSettings = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingBannerSettings = false;
+      });
+      // Use default banner image if fetch fails
+    }
+  }
+
+  Future<void> _loadPromotions() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingOffer = true;
+    });
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://new10-yk1r.onrender.com/api/promotions'),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (mounted) {
+          setState(() {
+            _offerCode = data['offer']?['code'];
+            _discountPercent = data['offer']?['discountPercent'];
+            _offerDescription = data['offer']?['description'];
+            _isLoadingOffer = false;
+          });
+          print('✅ Promotions loaded: $_offerCode - $_discountPercent%');
+        }
+      }
+    } catch (e) {
+      print('Error loading promotions: $e');
+      if (mounted) setState(() => _isLoadingOffer = false);
     }
   }
 
@@ -138,14 +224,14 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // Search Bar
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: _buildSearchBar(),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(height: 16),
 
             // "Everything in minutes" Grid Section
             Padding(
@@ -178,22 +264,43 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
 
             // "Go Places with Rapido" Categories
             Padding(
-              padding: const EdgeInsets.only(left: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 16),
-                    child: const Text(
-                      'Go Places with Rapido',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Go Places with Rapido',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
                       ),
-                    ),
+                      GestureDetector(
+                        onTap: () {
+                          // Navigate to all services page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AllServicesPage(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'View All',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   _buildCategoryScroll(),
                 ],
               ),
@@ -234,7 +341,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
         Navigator.pushNamed(context, '/search-location');
       },
       child: Container(
-        height: 44,
+        height: 36,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
@@ -251,21 +358,21 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
           child: Row(
             children: [
               Icon(
                 Icons.location_on_outlined,
                 color: Colors.grey.shade600,
-                size: 18,
+                size: 16,
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   'Enter pickup location',
                   style: TextStyle(
                     color: Colors.grey.shade500,
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
@@ -273,7 +380,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
               Icon(
                 Icons.arrow_forward_ios,
                 color: Colors.grey.shade400,
-                size: 14,
+                size: 12,
               ),
             ],
           ),
@@ -287,186 +394,106 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Large card (left) - 60%
+        // Large card (left) - 60% - CLEAN & NEAT
         Expanded(
           flex: 6,
-          child: Container(
-            height: 220,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 6),
+          child: GestureDetector(
+            onTap: () {
+              // Navigate to explore equipment
+            },
+            child: Container(
+              height: 160,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+                image: DecorationImage(
+                  image: NetworkImage(
+                    _bannerImageUrl,
+                  ),
+                  fit: BoxFit.cover,
+                  onError: (exception, stackTrace) {
+                    // Fallback color
+                  },
                 ),
-              ],
-              image: DecorationImage(
-                image: NetworkImage(
-                  'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80',
-                ),
-                fit: BoxFit.cover,
-                onError: (exception, stackTrace) {
-                  // Fallback color
-                },
               ),
-            ),
-            child: Stack(
-              children: [
-                // Dark overlay for text readability
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.3),
-                        Colors.black.withOpacity(0.6),
-                      ],
-                    ),
-                  ),
-                ),
-
-                // NEW Badge - Top right corner
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
+              child: Stack(
+                children: [
+                  // Dark overlay for text readability
+                  Container(
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(22),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.5),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(
-                          Icons.flash_on,
-                          size: 14,
-                          color: Colors.black,
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          'NEW',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.black,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ],
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.3),
+                          Colors.black.withOpacity(0.6),
+                        ],
+                      ),
                     ),
                   ),
-                ),
 
-                // Content
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Heavy Equipment\nOn Demand',
+                  // Content - MINIMAL
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title Only - Single Line
+                        const Text(
+                          'Heavy Equipment On Demand',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            height: 1.2,
+                            shadows: [
+                              Shadow(
+                                color: Colors.black54,
+                                blurRadius: 4,
+                                offset: Offset(1, 1),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Explore Button - Very Small
+                        ElevatedButton(
+                          onPressed: () {
+                            // Navigate to equipment
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 7,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 4,
+                            minimumSize: const Size(0, 0),
+                          ),
+                          child: const Text(
+                            'Explore',
                             style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                              height: 1.2,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black54,
-                                  blurRadius: 4,
-                                  offset: Offset(1, 1),
-                                ),
-                              ],
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Book machines instantly',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white70,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black54,
-                                  blurRadius: 2,
-                                  offset: Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            width: 56,
-                            height: 56,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.white.withOpacity(0.95),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.construction,
-                                size: 28,
-                                color: AppTheme.primaryColor,
-                              ),
-                            ),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 10,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              elevation: 6,
-                            ),
-                            child: const Text(
-                              'Explore',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -491,13 +518,9 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                           children: _apiServices.take(3).map((service) {
                             return Column(
                               children: [
-                                _buildQuickServiceCard(
-                                  service.name,
-                                  Icons.category,
-                                  service: service,
-                                ),
+                                _buildQuickServiceCardWithImage(service),
                                 if (_apiServices.indexOf(service) < 2)
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 10),
                               ],
                             );
                           }).toList(),
@@ -512,10 +535,10 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
     return GestureDetector(
       onTap: () {},
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: Colors.grey.shade200,
             width: 1,
@@ -530,8 +553,8 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
@@ -540,11 +563,11 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                 child: Icon(
                   icon,
                   color: AppTheme.primaryColor,
-                  size: 18,
+                  size: 16,
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,7 +575,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                   Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: Colors.black,
                     ),
@@ -561,7 +584,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                     Text(
                       service.category,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9,
                         color: Colors.grey.shade600,
                       ),
                     ),
@@ -570,8 +593,95 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
             ),
             Icon(
               Icons.arrow_forward_ios,
-              size: 12,
+              size: 10,
               color: Colors.grey.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Quick Service Card with Image - For top 3 services (VERY SMALL)
+  Widget _buildQuickServiceCardWithImage(Service service) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to listing page
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ServiceListingPage(
+              serviceName: service.name,
+              image: service.image1,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 6,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Very Small Image (like services cards)
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(10),
+                bottomLeft: Radius.circular(10),
+              ),
+              child: Container(
+                height: 60,
+                width: 60,
+                color: Colors.grey.shade200,
+                child: service.image1 != null && service.image1!.isNotEmpty
+                    ? Image.network(
+                        service.image1!,
+                        fit: BoxFit.cover,
+                        cacheHeight: 140,
+                        cacheWidth: 140,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade300,
+                            child: Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey.shade600,
+                              size: 20,
+                            ),
+                          );
+                        },
+                      )
+                    : Icon(
+                        Icons.category,
+                        size: 24,
+                        color: Colors.grey.shade600,
+                      ),
+              ),
+            ),
+            // Title Only - No description
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Text(
+                  service.name,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
           ],
         ),
@@ -581,13 +691,16 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
 
   // Promo Banner
   Widget _buildPromoBanner() {
+    final discount = _discountPercent ?? 15;
+    final code = _offerCode ?? 'RAPIDO15';
+    
     return Stack(
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: const Color(0xFFFFF8E1),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: AppTheme.primaryColor.withOpacity(0.2),
               width: 1,
@@ -605,37 +718,39 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Get 15% off',
-                      style: TextStyle(
-                        fontSize: 16,
+                    Text(
+                      'Get $discount% off',
+                      style: const TextStyle(
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Your first booking',
-                      style: TextStyle(
-                        fontSize: 12,
+                    const SizedBox(height: 3),
+                    Text(
+                      _offerDescription ?? 'Your first booking',
+                      style: const TextStyle(
+                        fontSize: 11,
                         fontWeight: FontWeight.w400,
                         color: Colors.black54,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+                        horizontal: 10,
+                        vertical: 5,
                       ),
                       decoration: BoxDecoration(
                         color: AppTheme.primaryColor,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(6),
                       ),
-                      child: const Text(
-                        'Book Now',
-                        style: TextStyle(
-                          fontSize: 11,
+                      child: Text(
+                        'Code: $code',
+                        style: const TextStyle(
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                           color: Colors.black,
                         ),
@@ -644,18 +759,18 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Container(
-                width: 60,
-                height: 60,
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Center(
                   child: Icon(
                     Icons.card_giftcard,
-                    size: 32,
+                    size: 26,
                     color: Colors.amber,
                   ),
                 ),
@@ -664,13 +779,13 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
           ),
         ),
         Positioned(
-          top: 8,
-          right: 8,
+          top: 6,
+          right: 6,
           child: GestureDetector(
             onTap: () => setState(() => _showPromoCard = false),
             child: Container(
-              width: 28,
-              height: 28,
+              width: 24,
+              height: 24,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: Colors.white,
@@ -684,7 +799,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
               child: const Center(
                 child: Icon(
                   Icons.close,
-                  size: 16,
+                  size: 14,
                   color: Colors.black54,
                 ),
               ),
@@ -697,141 +812,160 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
 
   // Category Scroll
   Widget _buildCategoryScroll() {
-    // Display all API services in a 2-column grid layout
-    return _isLoadingServices
-        ? const Center(
-            child: Padding(
-              padding: EdgeInsets.all(40),
-              child: CircularProgressIndicator(),
-            ),
-          )
-        : _servicesError != null
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Text(
-                    'Error loading services',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.red.shade600),
-                  ),
+    // Display services in 2 horizontal scrollable rows
+    if (_isLoadingServices) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_servicesError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'Error loading services',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.red.shade600),
+          ),
+        ),
+      );
+    }
+
+    if (_apiServices.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: Text('No services available'),
+        ),
+      );
+    }
+
+    // Split services into 2 rows
+    int itemsPerRow = (_apiServices.length / 2).ceil();
+    List<Service> row1 = _apiServices.take(itemsPerRow).toList();
+    List<Service> row2 = _apiServices.skip(itemsPerRow).toList();
+
+    return Column(
+      children: [
+        // Row 1
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(row1.length, (index) {
+              final service = row1[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  left: index == 0 ? 12 : 6,
+                  right: index == row1.length - 1 ? 12 : 6,
                 ),
-              )
-            : _apiServices.isEmpty
-                ? const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(40),
-                      child: Text('No services available'),
+                child: _buildServiceCard(service),
+              );
+            }),
+          ),
+        ),
+        const SizedBox(height: 14),
+        // Row 2
+        if (row2.isNotEmpty)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(row2.length, (index) {
+                final service = row2[index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    left: index == 0 ? 12 : 6,
+                    right: index == row2.length - 1 ? 12 : 6,
+                  ),
+                  child: _buildServiceCard(service),
+                );
+              }),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Helper widget to build service card
+  Widget _buildServiceCard(Service service) {
+    return GestureDetector(
+      onTap: () {
+        // Navigate to listing page
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ServiceListingPage(
+              serviceName: service.name,
+              image: service.image1,
+            ),
+          ),
+        );
+      },
+      child: Column(
+        children: [
+          // Service Icon/Image
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.grey.shade200,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+            child: service.image1 != null && service.image1!.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      service.image1!,
+                      fit: BoxFit.cover,
+                      cacheHeight: 120,
+                      cacheWidth: 120,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: Colors.grey.shade300,
+                          child: Icon(
+                            Icons.image_not_supported,
+                            color: Colors.grey.shade600,
+                            size: 22,
+                          ),
+                        );
+                      },
                     ),
                   )
-                : GridView.count(
-                    crossAxisCount: 2,
-                    childAspectRatio: 1.1,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: _apiServices.map((service) {
-                      return GestureDetector(
-                        onTap: () {},
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Service Image
-                            Expanded(
-                              child: Container(
-                                width: double.infinity,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  color: Colors.grey.shade200,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.08),
-                                      blurRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                                child: service.image1 != null &&
-                                        service.image1!.isNotEmpty
-                                    ? ClipRRect(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
-                                        child: Image.network(
-                                          service.image1!,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return Container(
-                                              color: Colors.grey.shade300,
-                                              child: Icon(
-                                                Icons.image_not_supported,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      )
-                                    : Container(
-                                        color: Colors.grey.shade300,
-                                        child: Icon(
-                                          Icons.category,
-                                          size: 32,
-                                          color: Colors.grey.shade600,
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            // Service Name
-                            Text(
-                              service.name,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 2),
-                            // Service Category
-                            Text(
-                              service.category,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  );
-  }
-                            ? AppTheme.primaryColor
-                            : Colors.grey.shade600,
-                      ),
+                : Container(
+                    color: Colors.grey.shade300,
+                    child: Icon(
+                      Icons.category,
+                      size: 26,
+                      color: Colors.grey.shade600,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    category['name'],
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isSelected ? AppTheme.primaryColor : Colors.grey,
-                    ),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+          ),
+          const SizedBox(height: 6),
+          // Service Title Only
+          SizedBox(
+            width: 56,
+            child: Text(
+              service.name,
+              style: const TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Colors.black,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -1354,7 +1488,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   // ==================== BOTTOM NAVIGATION ====================
   Widget _buildBottomNavigation() {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+      padding: const EdgeInsets.only(bottom: 12, left: 12, right: 12),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(24),
         child: BackdropFilter(
@@ -1369,14 +1503,14 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                   Colors.white.withOpacity(0.1),
                 ],
               ),
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: Colors.white.withOpacity(0.2),
                 width: 1,
               ),
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 6),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -1402,14 +1536,14 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
         children: [
           Icon(
             icon,
-            size: 20,
+            size: 18,
             color: isActive ? AppTheme.primaryColor : Colors.grey.shade600,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             label,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
               color: isActive ? AppTheme.primaryColor : Colors.grey.shade600,
             ),

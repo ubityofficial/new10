@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Card,
@@ -30,6 +30,78 @@ const SettingsPage: React.FC = () => {
     maintenanceMode: false,
     commissionsEnabled: true,
   })
+
+  // Banner Image Settings
+  const [bannerImageUrl, setBannerImageUrl] = useState('')
+  const [isLoadingBanner, setIsLoadingBanner] = useState(false)
+
+  // Fetch banner settings on component mount
+  useEffect(() => {
+    fetchBannerSettings()
+  }, [])
+
+  const fetchBannerSettings = async () => {
+    try {
+      setIsLoadingBanner(true)
+      const response = await fetch('https://new10-yk1r.onrender.com/api/settings')
+      if (response.ok) {
+        const data = await response.json()
+        setBannerImageUrl(data.bannerImageUrl || '')
+      }
+    } catch (error) {
+      console.error('Error fetching banner settings:', error)
+    } finally {
+      setIsLoadingBanner(false)
+    }
+  }
+
+  const handleBannerImageSave = async () => {
+    if (!bannerImageUrl.trim()) {
+      addNotification({
+        id: Date.now().toString(),
+        type: 'error',
+        message: 'Please enter a valid image URL',
+        timestamp: new Date(),
+      })
+      return
+    }
+
+    try {
+      setIsLoadingBanner(true)
+      const response = await fetch('https://new10-yk1r.onrender.com/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ bannerImageUrl }),
+      })
+
+      if (response.ok) {
+        addNotification({
+          id: Date.now().toString(),
+          type: 'success',
+          message: 'Banner image URL updated successfully',
+          timestamp: new Date(),
+        })
+      } else {
+        addNotification({
+          id: Date.now().toString(),
+          type: 'error',
+          message: 'Failed to update banner image URL',
+          timestamp: new Date(),
+        })
+      }
+    } catch (error) {
+      addNotification({
+        id: Date.now().toString(),
+        type: 'error',
+        message: 'Error updating banner settings',
+        timestamp: new Date(),
+      })
+    } finally {
+      setIsLoadingBanner(false)
+    }
+  }
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings({
@@ -344,6 +416,71 @@ const SettingsPage: React.FC = () => {
                 >
                   Save Platform Settings
                 </Button>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* Home Page Banner Settings */}
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                  Home Page Banner Settings
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                <Grid container spacing={3}>
+                  <Grid item xs={12}>
+                    <TextField
+                      fullWidth
+                      label="Banner Image URL"
+                      variant="outlined"
+                      placeholder="https://example.com/image.jpg"
+                      value={bannerImageUrl}
+                      onChange={(e) => setBannerImageUrl(e.target.value)}
+                      disabled={isLoadingBanner}
+                      helperText="Enter the full URL of the image to display on the Heavy Equipment On Demand card"
+                    />
+                  </Grid>
+
+                  {bannerImageUrl && (
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: 200,
+                          borderRadius: 2,
+                          overflow: 'hidden',
+                          border: '1px solid #e0e0e0',
+                        }}
+                      >
+                        <img
+                          src={bannerImageUrl}
+                          alt="Banner Preview"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                          onError={(e) => {
+                            (e.target as any).src = ''
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+                  )}
+
+                  <Grid item xs={12}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      onClick={handleBannerImageSave}
+                      disabled={isLoadingBanner || !bannerImageUrl.trim()}
+                    >
+                      {isLoadingBanner ? 'Updating...' : 'Update Banner Image'}
+                    </Button>
+                  </Grid>
+                </Grid>
               </CardContent>
             </Card>
           </Grid>

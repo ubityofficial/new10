@@ -26,6 +26,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ChevronLeft as ChevronLeftIcon,
   ShoppingCart as ShoppingCartIcon,
+  LocalOffer as LocalOfferIcon,
 } from '@mui/icons-material'
 import { useNavigate, useLocation } from 'react-router-dom'
 import useStore from '../store/useStore'
@@ -78,6 +79,11 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       label: 'Manage Services',
       icon: ShoppingCartIcon,
       path: '/services',
+    },
+    {
+      label: 'Promotions & Offers',
+      icon: LocalOfferIcon,
+      path: '/promotions',
     },
     {
       label: 'User Management',

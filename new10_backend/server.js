@@ -366,6 +366,180 @@ app.get('/api/services/:serviceId/vendors', (req, res) => {
   res.json(enriched);
 });
 
+// ============ APP SETTINGS (In-Memory) ============
+let appSettings = {
+  bannerImageUrl: 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80',
+  updatedAt: new Date(),
+};
+
+// GET app settings
+app.get('/api/settings', (req, res) => {
+  try {
+    res.json(appSettings);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE app settings (Admin only)
+app.post('/api/settings', (req, res) => {
+  try {
+    const { bannerImageUrl } = req.body;
+
+    if (!bannerImageUrl) {
+      return res.status(400).json({ error: 'Missing bannerImageUrl' });
+    }
+
+    // Validate URL format
+    try {
+      new URL(bannerImageUrl);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
+    appSettings = {
+      bannerImageUrl,
+      updatedAt: new Date(),
+    };
+
+    res.json({
+      message: 'Settings updated successfully',
+      settings: appSettings,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============ OFFERS & COUPONS (In-Memory) ============
+let offerData = {
+  code: 'RAPIDO15',
+  discountPercent: 15,
+  description: 'Get 15% off on heavy equipment rental!',
+  active: true,
+  createdAt: new Date(),
+};
+
+// GET offer data
+app.get('/api/offer', (req, res) => {
+  try {
+    res.json(offerData);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE offer data
+app.post('/api/offer', (req, res) => {
+  try {
+    const { code, discountPercent, description } = req.body;
+
+    if (!code || !code.trim()) {
+      return res.status(400).json({ error: 'Coupon code is required' });
+    }
+
+    const discount = parseInt(discountPercent);
+    if (isNaN(discount) || discount < 0 || discount > 100) {
+      return res.status(400).json({ error: 'Discount must be between 0 and 100' });
+    }
+
+    offerData = {
+      code: code.trim().toUpperCase(),
+      discountPercent: discount,
+      description: description || 'Special discount offer',
+      active: true,
+      createdAt: new Date(),
+    };
+
+    console.log(`✅ Offer updated: ${offerData.code} - ${offerData.discountPercent}% off`);
+    res.json({
+      message: 'Offer updated successfully',
+      offer: offerData,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET combined promotions (banner + offer)
+app.get('/api/promotions', (req, res) => {
+  try {
+    res.json({
+      banner: {
+        url: appSettings.bannerImageUrl,
+        updatedAt: appSettings.updatedAt,
+      },
+      offer: offerData,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE banner via promotions
+app.post('/api/promotions/banner', (req, res) => {
+  try {
+    const { url } = req.body;
+
+    if (!url || !url.trim()) {
+      return res.status(400).json({ error: 'Banner URL is required' });
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
+    appSettings.bannerImageUrl = url.trim();
+    appSettings.updatedAt = new Date();
+
+    console.log(`✅ Banner updated: ${appSettings.bannerImageUrl}`);
+    res.json({
+      message: 'Banner updated successfully',
+      banner: {
+        url: appSettings.bannerImageUrl,
+        updatedAt: appSettings.updatedAt,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE offer via promotions
+app.post('/api/promotions/offer', (req, res) => {
+  try {
+    const { couponCode, discountPercent, description, active } = req.body;
+
+    if (!couponCode || !couponCode.trim()) {
+      return res.status(400).json({ error: 'Coupon code is required' });
+    }
+
+    const discount = parseInt(discountPercent);
+    if (isNaN(discount) || discount < 0 || discount > 100) {
+      return res.status(400).json({ error: 'Discount must be between 0 and 100' });
+    }
+
+    offerData = {
+      code: couponCode.trim().toUpperCase(),
+      discountPercent: discount,
+      description: description || 'Special discount offer',
+      active: active !== false,
+      createdAt: new Date(),
+    };
+
+    console.log(`✅ Offer updated: ${offerData.code} - ${offerData.discountPercent}%`);
+    res.json({
+      message: 'Offer updated successfully',
+      offer: offerData,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });

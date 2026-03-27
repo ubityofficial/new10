@@ -12,6 +12,7 @@ import VendorManagementPage from './pages/VendorManagementPage'
 import ActivityLogsPage from './pages/ActivityLogsPage'
 import SettingsPage from './pages/SettingsPage'
 import ServicesManagement from './pages/ServicesManagement'
+import PromotionsPage from './pages/PromotionsPage'
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute'
@@ -69,6 +70,14 @@ const App: React.FC = () => {
             element={
               <ProtectedRoute>
                 <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/promotions"
+            element={
+              <ProtectedRoute>
+                <PromotionsPage />
               </ProtectedRoute>
             }
           />
