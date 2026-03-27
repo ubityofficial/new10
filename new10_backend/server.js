@@ -788,6 +788,190 @@ app.post('/api/promotions/offer', async (req, res) => {
   }
 });
 
+// ============ ADMIN ENDPOINTS ============
+
+// GET all users (for admin panel)
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, email, name, phone, role, status, profile_image, created_at');
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      users: users || [],
+      count: (users || []).length,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET all vendors (for admin panel)
+app.get('/api/admin/vendors/list', async (req, res) => {
+  try {
+    const { data: vendors, error: vendorError } = await supabase
+      .from('vendors')
+      .select(`
+        id,
+        user_id,
+        business_name,
+        business_registration,
+        gst,
+        status,
+        approved,
+        blocked,
+        created_at,
+        users (id, email, name, phone)
+      `);
+
+    if (vendorError) {
+      return res.status(400).json({ error: vendorError.message });
+    }
+
+    res.json({
+      success: true,
+      vendors: vendors || [],
+      count: (vendors || []).length,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET user by ID (admin details view)
+app.get('/api/admin/users/:userId', async (req, res) => {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', req.params.userId)
+      .single();
+
+    if (error) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      success: true,
+      user,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE user status (block/unblock)
+app.put('/api/admin/users/:userId/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!['active', 'blocked', 'suspended'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const { data: updatedUser, error } = await supabase
+      .from('users')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', req.params.userId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      message: `User status updated to ${status}`,
+      user: updatedUser,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET vendor by ID
+app.get('/api/admin/vendors/:vendorId', async (req, res) => {
+  try {
+    const { data: vendor, error } = await supabase
+      .from('vendors')
+      .select(`
+        *,
+        users (id, email, name, phone)
+      `)
+      .eq('id', req.params.vendorId)
+      .single();
+
+    if (error) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    res.json({
+      success: true,
+      vendor,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE vendor approval status
+app.put('/api/admin/vendors/:vendorId/approve', async (req, res) => {
+  try {
+    const { approved } = req.body;
+
+    const { data: updatedVendor, error } = await supabase
+      .from('vendors')
+      .update({ approved, updated_at: new Date().toISOString() })
+      .eq('id', req.params.vendorId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      message: `Vendor ${approved ? 'approved' : 'unapproved'}`,
+      vendor: updatedVendor,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// UPDATE vendor block status
+app.put('/api/admin/vendors/:vendorId/block', async (req, res) => {
+  try {
+    const { blocked } = req.body;
+
+    const { data: updatedVendor, error } = await supabase
+      .from('vendors')
+      .update({ blocked, updated_at: new Date().toISOString() })
+      .eq('id', req.params.vendorId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      message: `Vendor ${blocked ? 'blocked' : 'unblocked'}`,
+      vendor: updatedVendor,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });
