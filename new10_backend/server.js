@@ -370,23 +370,37 @@ app.get('/api/services/:serviceId/vendors', (req, res) => {
   res.json(enriched);
 });
 
-// ============ APP SETTINGS (In-Memory) ============
-let appSettings = {
-  bannerImageUrl: 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80',
-  updatedAt: new Date(),
-};
+// ============ APP SETTINGS (Supabase Database) ============
 
-// GET app settings
-app.get('/api/settings', (req, res) => {
+// GET app settings from database
+app.get('/api/settings', async (req, res) => {
   try {
-    res.json(appSettings);
+    const { data, error } = await supabase
+      .from('promotions')
+      .select('*')
+      .eq('promoType', 'banner')
+      .order('createdAt', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) {
+      // Return default settings
+      return res.json({
+        bannerImageUrl: 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80',
+        updatedAt: new Date(),
+      });
+    }
+
+    res.json({
+      bannerImageUrl: data[0].bannerUrl,
+      updatedAt: data[0].updatedAt,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// UPDATE app settings (Admin only)
-app.post('/api/settings', (req, res) => {
+// UPDATE app settings (Admin only) in database
+app.post('/api/settings', async (req, res) => {
   try {
     const { bannerImageUrl } = req.body;
 
@@ -401,40 +415,138 @@ app.post('/api/settings', (req, res) => {
       return res.status(400).json({ error: 'Invalid URL format' });
     }
 
-    appSettings = {
-      bannerImageUrl,
-      updatedAt: new Date(),
-    };
+    // Get existing banner or create new one
+    const { data: existing } = await supabase
+      .from('promotions')
+      .select('id')
+      .eq('promoType', 'banner')
+      .limit(1);
+
+    let result;
+
+    if (existing && existing.length > 0) {
+      result = await supabase
+        .from('promotions')
+        .update({
+          bannerUrl: bannerImageUrl,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq('id', existing[0].id)
+        .select()
+        .single();
+    } else {
+      result = await supabase
+        .from('promotions')
+        .insert([
+          {
+            promoType: 'banner',
+            bannerUrl: bannerImageUrl,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
+    }
+
+    if (result.error) {
+      return res.status(400).json({ error: result.error.message });
+    }
 
     res.json({
       message: 'Settings updated successfully',
-      settings: appSettings,
+      settings: {
+        bannerImageUrl: result.data.bannerUrl,
+        updatedAt: result.data.updatedAt,
+      },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// ============ OFFERS & COUPONS (In-Memory) ============
-let offerData = {
-  code: 'RAPIDO15',
-  discountPercent: 15,
-  description: 'Get 15% off on heavy equipment rental!',
-  active: true,
-  createdAt: new Date(),
-};
-
-// GET offer data
-app.get('/api/offer', (req, res) => {
+// ============ OFFERS & COUPONS (Supabase Database) ============
+// Function to initialize default offer if table is empty
+async function initializeDefaultOffer() {
   try {
-    res.json(offerData);
+    const { data, error } = await supabase
+      .from('promotions')
+      .select('*')
+      .limit(1);
+    
+    if (error) {
+      console.log('⚠️ Promotions table might not exist yet');
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      // Insert default offer
+      await supabase
+        .from('promotions')
+        .insert([
+          {
+            promoType: 'offer',
+            code: 'RAPIDO15',
+            discountPercent: 15,
+            description: 'Get 15% off on heavy equipment rental!',
+            active: true,
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+      console.log('✅ Default offer initialized');
+    }
+  } catch (err) {
+    console.log('⚠️ Could not initialize default offer:', err.message);
+  }
+}
+
+// Initialize on startup
+initializeDefaultOffer();
+
+// GET offer data from database
+app.get('/api/offer', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('promotions')
+      .select('*')
+      .eq('promoType', 'offer')
+      .eq('active', true)
+      .order('createdAt', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.log('⚠️ Error fetching offer:', error.message);
+      // Return default offer
+      return res.json({
+        code: 'RAPIDO15',
+        discountPercent: 15,
+        description: 'Get 15% off on heavy equipment rental!',
+        active: true,
+      });
+    }
+
+    if (data && data.length > 0) {
+      res.json(data[0]);
+    } else {
+      // Return default offer if none found
+      res.json({
+        code: 'RAPIDO15',
+        discountPercent: 15,
+        description: 'Get 15% off on heavy equipment rental!',
+        active: true,
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// UPDATE offer data
-app.post('/api/offer', (req, res) => {
+// UPDATE offer data in database
+app.post('/api/offer', async (req, res) => {
   try {
     const { code, discountPercent, description } = req.body;
 
@@ -447,41 +559,98 @@ app.post('/api/offer', (req, res) => {
       return res.status(400).json({ error: 'Discount must be between 0 and 100' });
     }
 
-    offerData = {
-      code: code.trim().toUpperCase(),
-      discountPercent: discount,
-      description: description || 'Special discount offer',
-      active: true,
-      createdAt: new Date(),
-    };
+    // Get existing offer or create new one
+    const { data: existing } = await supabase
+      .from('promotions')
+      .select('id')
+      .eq('promoType', 'offer')
+      .limit(1);
 
-    console.log(`✅ Offer updated: ${offerData.code} - ${offerData.discountPercent}% off`);
+    let result;
+
+    if (existing && existing.length > 0) {
+      // Update existing offer
+      result = await supabase
+        .from('promotions')
+        .update({
+          code: code.trim().toUpperCase(),
+          discountPercent: discount,
+          description: description || 'Special discount offer',
+          active: true,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq('id', existing[0].id)
+        .select()
+        .single();
+    } else {
+      // Create new offer
+      result = await supabase
+        .from('promotions')
+        .insert([
+          {
+            promoType: 'offer',
+            code: code.trim().toUpperCase(),
+            discountPercent: discount,
+            description: description || 'Special discount offer',
+            active: true,
+            createdAt: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
+    }
+
+    if (result.error) {
+      return res.status(400).json({ error: result.error.message });
+    }
+
+    console.log(`✅ Offer updated: ${code.toUpperCase()} - ${discount}% in database`);
     res.json({
       message: 'Offer updated successfully',
-      offer: offerData,
+      offer: result.data,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET combined promotions (banner + offer)
-app.get('/api/promotions', (req, res) => {
+// GET combined promotions (banner + offer) from database
+app.get('/api/promotions', async (req, res) => {
   try {
-    res.json({
-      banner: {
-        url: appSettings.bannerImageUrl,
-        updatedAt: appSettings.updatedAt,
-      },
-      offer: offerData,
-    });
+    // Get banner
+    const { data: bannerData, error: bannerError } = await supabase
+      .from('promotions')
+      .select('*')
+      .eq('promoType', 'banner')
+      .order('createdAt', { ascending: false })
+      .limit(1);
+
+    // Get active offer
+    const { data: offerData, error: offerError } = await supabase
+      .from('promotions')
+      .select('*')
+      .eq('promoType', 'offer')
+      .eq('active', true)
+      .order('createdAt', { ascending: false })
+      .limit(1);
+
+    // Provide fallback values if queries fail
+    const banner = bannerData && bannerData.length > 0 
+      ? { url: bannerData[0].bannerUrl, updatedAt: bannerData[0].updatedAt }
+      : { url: 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80', updatedAt: new Date() };
+
+    const offer = offerData && offerData.length > 0
+      ? offerData[0]
+      : { code: 'RAPIDO15', discountPercent: 15, description: 'Get 15% off on heavy equipment rental!', active: true };
+
+    res.json({ banner, offer });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// UPDATE banner via promotions
-app.post('/api/promotions/banner', (req, res) => {
+// UPDATE banner via promotions (database)
+app.post('/api/promotions/banner', async (req, res) => {
   try {
     const { url } = req.body;
 
@@ -496,15 +665,52 @@ app.post('/api/promotions/banner', (req, res) => {
       return res.status(400).json({ error: 'Invalid URL format' });
     }
 
-    appSettings.bannerImageUrl = url.trim();
-    appSettings.updatedAt = new Date();
+    // Get existing banner or create new one
+    const { data: existing } = await supabase
+      .from('promotions')
+      .select('id')
+      .eq('promoType', 'banner')
+      .limit(1);
 
-    console.log(`✅ Banner updated: ${appSettings.bannerImageUrl}`);
+    let result;
+
+    if (existing && existing.length > 0) {
+      // Update existing banner
+      result = await supabase
+        .from('promotions')
+        .update({
+          bannerUrl: url.trim(),
+          updatedAt: new Date().toISOString(),
+        })
+        .eq('id', existing[0].id)
+        .select()
+        .single();
+    } else {
+      // Create new banner
+      result = await supabase
+        .from('promotions')
+        .insert([
+          {
+            promoType: 'banner',
+            bannerUrl: url.trim(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
+    }
+
+    if (result.error) {
+      return res.status(400).json({ error: result.error.message });
+    }
+
+    console.log(`✅ Banner updated in database: ${url.trim()}`);
     res.json({
       message: 'Banner updated successfully',
       banner: {
-        url: appSettings.bannerImageUrl,
-        updatedAt: appSettings.updatedAt,
+        url: result.data.bannerUrl,
+        updatedAt: result.data.updatedAt,
       },
     });
   } catch (err) {
@@ -512,8 +718,8 @@ app.post('/api/promotions/banner', (req, res) => {
   }
 });
 
-// UPDATE offer via promotions
-app.post('/api/promotions/offer', (req, res) => {
+// UPDATE offer via promotions (database)
+app.post('/api/promotions/offer', async (req, res) => {
   try {
     const { couponCode, discountPercent, description, active } = req.body;
 
@@ -526,18 +732,55 @@ app.post('/api/promotions/offer', (req, res) => {
       return res.status(400).json({ error: 'Discount must be between 0 and 100' });
     }
 
-    offerData = {
-      code: couponCode.trim().toUpperCase(),
-      discountPercent: discount,
-      description: description || 'Special discount offer',
-      active: active !== false,
-      createdAt: new Date(),
-    };
+    // Get existing offer or create new one
+    const { data: existing } = await supabase
+      .from('promotions')
+      .select('id')
+      .eq('promoType', 'offer')
+      .limit(1);
 
-    console.log(`✅ Offer updated: ${offerData.code} - ${offerData.discountPercent}%`);
+    let result;
+
+    if (existing && existing.length > 0) {
+      // Update existing offer
+      result = await supabase
+        .from('promotions')
+        .update({
+          code: couponCode.trim().toUpperCase(),
+          discountPercent: discount,
+          description: description || 'Special discount offer',
+          active: active !== false,
+          updatedAt: new Date().toISOString(),
+        })
+        .eq('id', existing[0].id)
+        .select()
+        .single();
+    } else {
+      // Create new offer
+      result = await supabase
+        .from('promotions')
+        .insert([
+          {
+            promoType: 'offer',
+            code: couponCode.trim().toUpperCase(),
+            discountPercent: discount,
+            description: description || 'Special discount offer',
+            active: active !== false,
+            createdAt: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
+    }
+
+    if (result.error) {
+      return res.status(400).json({ error: result.error.message });
+    }
+
+    console.log(`✅ Offer updated in database: ${couponCode.toUpperCase()} - ${discount}%`);
     res.json({
       message: 'Offer updated successfully',
-      offer: offerData,
+      offer: result.data,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

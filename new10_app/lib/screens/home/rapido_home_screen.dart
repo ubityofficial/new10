@@ -230,117 +230,134 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   // ==================== EXPLORE TAB ====================
   Widget _buildExploreContent() {
     return SafeArea(
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 8),
+      child: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        color: AppTheme.primaryColor,
+        backgroundColor: Colors.white,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 8),
 
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: _buildSearchBar(),
-            ),
-            const SizedBox(height: 16),
-
-            // "Everything in minutes" Grid Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Everything in minutes',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildEverythingGrid(),
-                ],
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: _buildSearchBar(),
               ),
-            ),
-            const SizedBox(height: 28),
+              const SizedBox(height: 16),
 
-            // Promo Banner
-            if (_showPromoCard)
+              // "Everything in minutes" Grid Section
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _buildPromoBanner(),
-              ),
-            if (_showPromoCard) const SizedBox(height: 28),
-
-            // "Go Places with Rapido" Categories
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Book Your Equipments now',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                        ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Everything in minutes',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          // Navigate to all services page
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const AllServicesPage(),
-                            ),
-                          );
-                        },
-                        child: Text(
-                          'View All',
+                    ),
+                    const SizedBox(height: 16),
+                    _buildEverythingGrid(),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 28),
+
+              // Promo Banner
+              if (_showPromoCard)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _buildPromoBanner(),
+                ),
+              if (_showPromoCard) const SizedBox(height: 28),
+
+              // "Go Places with Rapido" Categories
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Book Your Equipments now',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.primaryColor,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  _buildCategoryScroll(),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-
-            // Popular Services
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Popular Equipment',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black,
+                        GestureDetector(
+                          onTap: () {
+                            // Navigate to all services page
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const AllServicesPage(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'View All',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPopularServices(),
-                ],
+                    const SizedBox(height: 10),
+                    _buildCategoryScroll(),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 100), // Extra padding for bottom nav
-          ],
+              const SizedBox(height: 28),
+
+              // Popular Services
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Popular Equipment',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPopularServices(),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 100), // Extra padding for bottom nav
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  // Handle refresh - reload all data
+  Future<void> _handleRefresh() async {
+    print('🔄 Refreshing home screen data...');
+    await Future.wait([
+      _loadServices(),
+      _loadBannerSettings(),
+      _loadPromotions(),
+    ]);
+    print('✅ Home screen data refreshed');
   }
 
   // Search Bar Widget - Location Search for Home Screen
@@ -415,6 +432,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
               height: 160,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
+                color: Colors.grey.shade700, // Fallback color while loading
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.12),
@@ -422,19 +440,74 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                     offset: const Offset(0, 6),
                   ),
                 ],
-                image: DecorationImage(
-                  image: NetworkImage(
-                    _bannerImageUrl,
-                  ),
-                  fit: BoxFit.cover,
-                  onError: (exception, stackTrace) {
-                    // Fallback color
-                  },
-                ),
               ),
               child: Stack(
                 children: [
-                  // Light overlay for text readability - Banner stays BRIGHT
+                  // Background Image with loading & error handling
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.network(
+                      _bannerImageUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 160,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          color: Colors.grey.shade700,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.yellow.shade700,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('🔴 Banner image load error: $error');
+                        // Show gradient fallback on error
+                        return Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.yellow.shade600,
+                                Colors.orange.shade600,
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.construction,
+                                  size: 40,
+                                  color: Colors.white.withOpacity(0.7),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Loading Equipment',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.7),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  
+                  // Light overlay for text readability
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),

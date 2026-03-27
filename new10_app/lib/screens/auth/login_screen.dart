@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import 'registration_screen.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -173,11 +174,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
-                      child: Text(
-                        'Forgot password?',
-                        style: TextStyle(
-                          color: Colors.yellow.shade700,
-                          fontWeight: FontWeight.w600,
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ForgotPasswordScreen(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          'Forgot password?',
+                          style: TextStyle(
+                            color: Colors.yellow.shade700,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),

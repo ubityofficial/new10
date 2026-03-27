@@ -15,6 +15,7 @@ import 'screens/bookings/my_bookings_screen.dart';
 import 'screens/checkout/checkout_screen.dart';
 import 'providers/auth_provider.dart';
 import 'theme/app_theme.dart';
+import 'services/image_preload_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,13 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
+  
+  // 🚀 Start aggressive image preloading IMMEDIATELY
+  print('⚡ Preloading images BEFORE app launch...');
+  ImagePreloadService.preloadAllImages().then((_) {
+    print('✅ Image preload task started in background');
+  });
+  
   runApp(const MyApp());
 }
 
