@@ -217,32 +217,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     // Send Button
                     GestureDetector(
                       onTap: _isLoading ? null : _handleForgotPassword,
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.yellow.shade700,
-                          borderRadius: BorderRadius.circular(15),
-                          opacity: _isLoading ? 0.6 : 1.0,
+                      child: Opacity(
+                        opacity: _isLoading ? 0.6 : 1.0,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.yellow.shade700,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          alignment: Alignment.center,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text(
+                                  'Send Reset Link',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                    fontSize: 16,
+                                  ),
+                                ),
                         ),
-                        alignment: Alignment.center,
-                        child: _isLoading
-                            ? const SizedBox(
-                                height: 20,
-                                width: 20,
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text(
-                                'Send Reset Link',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
-                                  fontSize: 16,
-                                ),
-                              ),
                       ),
                     ),
                     const SizedBox(height: 16),
