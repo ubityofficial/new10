@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
-import 'vendor_services_management_screen.dart';
+import 'vendor_services_management_screen_new.dart';
 import 'vendor_profile_screen.dart';
 
 class VendorDashboardScreenNew extends StatefulWidget {
@@ -57,7 +57,7 @@ class _VendorDashboardScreenNewState extends State<VendorDashboardScreenNew> {
             // Bookings Tab
             _buildBookingsTab(),
             // Services Tab
-            const VendorServicesManagementScreen(),
+            const VendorServicesManagementScreenNew(),
             // Profile Tab (NEW)
             const VendorProfileScreen(),
           ],
