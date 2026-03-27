@@ -71,7 +71,7 @@ app.get('/api/services-test', async (req, res) => {
       services: data || []
     });
   } catch (err) {
-    res.json({ success: false, error: (err as any).message });
+    res.json({ success: false, error: err.message });
   }
 });
 
@@ -131,7 +131,7 @@ app.get('/api/services', async (req, res) => {
     res.json(formatted);
   } catch (err) {
     console.error('Error in /api/services catch:', err);
-    res.status(500).json({ error: 'Error: ' + (err as any).message });
+    res.status(500).json({ error: 'Error: ' + err.message });
   }
 });
 
