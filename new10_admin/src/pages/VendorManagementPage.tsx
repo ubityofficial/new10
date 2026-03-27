@@ -343,7 +343,17 @@ const VendorManagementPage: React.FC = () => {
                             </Button>
                           </>
                         )}
-                        {vendor.status === 'approved' && !vendor.verified && (
+                        {vendor.status === 'active' && (
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleActionOpen(vendor, 'approve')}
+                            color="success"
+                          >
+                            Approve
+                          </Button>
+                        )}
+                        {(vendor.status === 'approved' || vendor.status === 'active') && !vendor.verified && (
                           <Button
                             size="small"
                             variant="outlined"
@@ -353,7 +363,7 @@ const VendorManagementPage: React.FC = () => {
                             Verify
                           </Button>
                         )}
-                        {vendor.status === 'approved' && (
+                        {(vendor.status === 'approved' || vendor.status === 'active') && (
                           <>
                             <Button
                               size="small"
