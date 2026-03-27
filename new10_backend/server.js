@@ -52,118 +52,109 @@ app.get('/api/services', async (req, res) => {
   try {
     const { district, search, limit = 50, offset = 0 } = req.query;
 
+    // Fetch vendor_services with availability filter
     let query = supabase
       .from('vendor_services')
-      .select(`
-        id,
-        vendor_id,
-        service_id,
-        pricing,
-        duration,
-        location,
-        availability,
-        created_at,
-        services (
-          id,
-          name,
-          description,
-          category,
-          image1,
-          image2,
-          rating,
-          reviews
-        ),
-        vendors (
-          id,
-          user_id,
-          business_name,
-          status,
-          approved
-        )
-      `)
+      .select('id, vendor_id, service_id, pricing, duration, location, availability, created_at')
       .eq('availability', true)
       .order('created_at', { ascending: false });
 
     // Filter by district if provided
     if (district && district !== 'All Districts') {
-      query = query.eq('location', district);
+      query = query.ilike('location', `%${district}%`);
     }
 
-    // Filter by search if provided
-    if (search && search.trim()) {
-      const searchLower = search.toString().toLowerCase();
-      // This is a client-side filter since Supabase doesn't support complex OR queries easily
-      // We'll fetch all and filter, or use a stored procedure
-      const { data, error } = await query.limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit));
-      
-      if (error) {
-        return res.status(400).json({ error: error.message });
-      }
+    const { data: vendorServices, error: vsError } = await query;
 
-      // Client-side filtering for search
-      const filtered = (data || []).filter(vs => {
-        const serviceName = vs.services?.name?.toLowerCase() || '';
-        const businessName = vs.vendors?.business_name?.toLowerCase() || '';
-        const description = vs.services?.description?.toLowerCase() || '';
-        
-        return (
-          serviceName.includes(searchLower) ||
-          businessName.includes(searchLower) ||
-          description.includes(searchLower)
-        );
-      });
+    if (vsError) {
+      console.error('Error fetching vendor_services:', vsError);
+      return res.status(500).json({ error: vsError.message });
+    }
 
-      const formatted = filtered.map(vs => ({
+    if (!vendorServices || vendorServices.length === 0) {
+      return res.json([]);
+    }
+
+    // Extract unique service_ids and vendor_ids to fetch data
+    const serviceIds = [...new Set(vendorServices.map(vs => vs.service_id))];
+    const vendorIds = [...new Set(vendorServices.map(vs => vs.vendor_id))];
+
+    // Fetch all related services in one query
+    const { data: services, error: sError } = await supabase
+      .from('services')
+      .select('id, name, description, category, image1, image2, rating, reviews')
+      .in('id', serviceIds);
+
+    if (sError) {
+      console.error('Error fetching services:', sError);
+      return res.status(500).json({ error: sError.message });
+    }
+
+    // Fetch all related vendors in one query
+    const { data: vendors, error: vError } = await supabase
+      .from('vendors')
+      .select('id, user_id, business_name, status, approved')
+      .in('id', vendorIds);
+
+    if (vError) {
+      console.error('Error fetching vendors:', vError);
+      return res.status(500).json({ error: vError.message });
+    }
+
+    // Create lookup maps for faster access
+    const servicesMap = {};
+    (services || []).forEach(s => {
+      servicesMap[s.id] = s;
+    });
+
+    const vendorsMap = {};
+    (vendors || []).forEach(v => {
+      vendorsMap[v.id] = v;
+    });
+
+    // Format and filter response
+    let formatted = vendorServices.map(vs => {
+      const service = servicesMap[vs.service_id] || {};
+      const vendor = vendorsMap[vs.vendor_id] || {};
+
+      return {
         id: vs.id,
-        name: vs.services?.name,
-        description: vs.services?.description,
-        category: vs.services?.category,
-        image1: vs.services?.image1,
-        image2: vs.services?.image2,
-        rating: vs.services?.rating || 0,
-        reviews: vs.services?.reviews || 0,
+        name: service.name,
+        description: service.description,
+        category: service.category,
+        image1: service.image1,
+        image2: service.image2,
+        rating: service.rating || 0,
+        reviews: service.reviews || 0,
         vendorId: vs.vendor_id,
-        vendorName: vs.vendors?.business_name,
+        vendorName: vendor.business_name || 'Unknown Vendor',
         location: vs.location,
         pricePerDay: vs.pricing,
-        pricePerHour: null, // Will add hourly pricing support later
-        isOnline: vs.vendors?.status === 'active',
-        emoji: '🏗️', // Default emoji - will store per service later
-        serviceType: vs.services?.category,
-      }));
+        pricePerHour: null,
+        isOnline: vendor.status === 'active',
+        emoji: '🏗️',
+        serviceType: service.category,
+      };
+    });
 
-      return res.json(formatted);
+    // Apply search filter if provided
+    if (search && search.trim()) {
+      const searchLower = search.toLowerCase();
+      formatted = formatted.filter(s =>
+        (s.name && s.name.toLowerCase().includes(searchLower)) ||
+        (s.vendorName && s.vendorName.toLowerCase().includes(searchLower)) ||
+        (s.description && s.description.toLowerCase().includes(searchLower))
+      );
     }
 
-    // No search filter, just location
-    const { data, error } = await query.limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit));
-    
-    if (error) {
-      return res.status(400).json({ error: error.message });
-    }
-
-    // Format response
-    const formatted = (data || []).map(vs => ({
-      id: vs.id,
-      name: vs.services?.name,
-      description: vs.services?.description,
-      category: vs.services?.category,
-      image1: vs.services?.image1,
-      image2: vs.services?.image2,
-      rating: vs.services?.rating || 0,
-      reviews: vs.services?.reviews || 0,
-      vendorId: vs.vendor_id,
-      vendorName: vs.vendors?.business_name,
-      location: vs.location,
-      pricePerDay: vs.pricing,
-      pricePerHour: null, // Will add hourly pricing support later
-      isOnline: vs.vendors?.status === 'active',
-      emoji: '🏗️', // Default emoji - will store per service later
-      serviceType: vs.services?.category,
-    }));
+    // Apply pagination
+    const start = parseInt(offset);
+    const end = start + parseInt(limit);
+    formatted = formatted.slice(start, end);
 
     res.json(formatted);
   } catch (err) {
+    console.error('Error in /api/services:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -171,62 +162,53 @@ app.get('/api/services', async (req, res) => {
 // GET single service
 app.get('/api/services/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { data: vendorService, error: vsError } = await supabase
       .from('vendor_services')
-      .select(`
-        id,
-        vendor_id,
-        service_id,
-        pricing,
-        duration,
-        location,
-        availability,
-        created_at,
-        services (
-          id,
-          name,
-          description,
-          category,
-          image1,
-          image2,
-          rating,
-          reviews
-        ),
-        vendors (
-          id,
-          user_id,
-          business_name,
-          status,
-          approved
-        )
-      `)
+      .select('id, vendor_id, service_id, pricing, duration, location, availability, created_at')
       .eq('id', req.params.id)
       .single();
     
-    if (error) return res.status(404).json({ error: 'Service not found' });
-    
+    if (vsError || !vendorService) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    // Fetch the related service
+    const { data: service, error: sError } = await supabase
+      .from('services')
+      .select('id, name, description, category, image1, image2, rating, reviews')
+      .eq('id', vendorService.service_id)
+      .single();
+
+    // Fetch the related vendor
+    const { data: vendor, error: vError } = await supabase
+      .from('vendors')
+      .select('id, user_id, business_name, status, approved')
+      .eq('id', vendorService.vendor_id)
+      .single();
+
     // Format response
     const formatted = {
-      id: data.id,
-      name: data.services?.name,
-      description: data.services?.description,
-      category: data.services?.category,
-      image1: data.services?.image1,
-      image2: data.services?.image2,
-      rating: data.services?.rating || 0,
-      reviews: data.services?.reviews || 0,
-      vendorId: data.vendor_id,
-      vendorName: data.vendors?.business_name,
-      location: data.location,
-      pricePerDay: data.pricing,
+      id: vendorService.id,
+      name: service?.name,
+      description: service?.description,
+      category: service?.category,
+      image1: service?.image1,
+      image2: service?.image2,
+      rating: service?.rating || 0,
+      reviews: service?.reviews || 0,
+      vendorId: vendorService.vendor_id,
+      vendorName: vendor?.business_name || 'Unknown Vendor',
+      location: vendorService.location,
+      pricePerDay: vendorService.pricing,
       pricePerHour: null,
-      isOnline: data.vendors?.status === 'active',
+      isOnline: vendor?.status === 'active',
       emoji: '🏗️',
-      serviceType: data.services?.category,
+      serviceType: service?.category,
     };
     
     res.json(formatted);
   } catch (err) {
+    console.error('Error in /api/services/:id:', err);
     res.status(500).json({ error: err.message });
   }
 });
