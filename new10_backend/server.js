@@ -1470,13 +1470,34 @@ app.post('/api/seed-test-data', async (req, res) => {
   try {
     console.log('🌱 Seeding test data...');
 
-    // Create test vendor
+    // Create test user first (vendor owner)
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .insert([
+        {
+          id: uuidv4(),
+          email: 'test-vendor@example.com',
+          phone: '9876543210',
+          full_name: 'Test Vendor',
+          role: 'vendor',
+          created_at: new Date(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (userError) {
+      console.error('Error creating user:', userError);
+      return res.status(500).json({ error: 'Failed to create user: ' + userError.message });
+    }
+
+    // Create test vendor linked to the user
     const { data: vendor, error: vendorError } = await supabase
       .from('vendors')
       .insert([
         {
           id: uuidv4(),
-          user_id: uuidv4(),
+          user_id: user.id,
           business_name: 'SLV Machineries',
           status: 'active',
           approved: true,
@@ -1549,6 +1570,7 @@ app.post('/api/seed-test-data', async (req, res) => {
     res.json({
       success: true,
       message: 'Test data seeded successfully',
+      user: user,
       vendor: vendor,
       servicesCreated: services.length,
       vendorServicesCreated: vendorServices.length,
