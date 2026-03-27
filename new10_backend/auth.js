@@ -116,7 +116,7 @@ const authRoutes = (app, supabase) => {
       // If vendor role, also create vendor record
       if (role === 'vendor') {
         const vendorId = 'vnd_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        const { error: vendorError } = await supabase
+        const { data: newVendor, error: vendorError } = await supabase
           .from('vendors')
           .insert([
             {
@@ -124,15 +124,23 @@ const authRoutes = (app, supabase) => {
               user_id: userId,
               business_name: name,
               business_registration: null,
+              gst: null,
               status: 'active',
               approved: false,
               blocked: false,
             }
-          ]);
+          ])
+          .select()
+          .single();
 
         if (vendorError) {
-          console.error('⚠️ Warning: Failed to create vendor record:', vendorError);
+          console.error('❌ Error creating vendor record:', vendorError);
+          // Delete the user record since vendor creation failed
+          await supabase.from('users').delete().eq('id', userId);
+          return res.status(500).json({ error: 'Failed to create vendor record: ' + vendorError.message });
         }
+
+        console.log(`✅ Vendor created: ${vendorId} for user ${userId}`);
       }
 
       // Generate token
