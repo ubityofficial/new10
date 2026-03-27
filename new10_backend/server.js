@@ -500,8 +500,8 @@ async function initializeDefaultOffer() {
   }
 }
 
-// Initialize on startup
-initializeDefaultOffer();
+// Removed: initializeDefaultOffer() was resetting promotions on every restart
+// The API endpoints have fallback defaults, so this is not needed
 
 // GET offer data from database
 app.get('/api/offer', async (req, res) => {

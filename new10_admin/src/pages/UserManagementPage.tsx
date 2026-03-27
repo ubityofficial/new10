@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Card,
@@ -28,9 +28,8 @@ interface UserData {
   email: string
   phone: string
   status: 'active' | 'suspended' | 'blocked'
-  rating: number
-  bookings: number
-  joined: string
+  role: string
+  createdAt: string
 }
 
 const mockUsers: UserData[] = [
@@ -64,27 +63,54 @@ const mockUsers: UserData[] = [
     bookings: 5,
     joined: '2023-03-10',
   },
-  {
-    id: '4',
-    name: 'Neha Singh',
-    email: 'neha@email.com',
-    phone: '+91-9876543213',
-    status: 'active',
-    rating: 4.2,
-    bookings: 18,
-    joined: '2023-04-05',
-  },
-]
 
 const UserManagementPage: React.FC = () => {
   const { addNotification } = useStore()
-  const [users, setUsers] = useState(mockUsers)
+  const [users, setUsers] = useState<UserData[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [actionDialogOpen, setActionDialogOpen] = useState(false)
   const [actionReason, setActionReason] = useState('')
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null)
   const [actionType, setActionType] = useState<'suspend' | 'block' | 'activate' | null>(null)
+
+  // Fetch users from API on mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('https://new10-yk1r.onrender.com/api/admin/users')
+        const data = await response.json()
+        
+        if (data.success && data.users) {
+          // Map API response to UserData format
+          const mappedUsers = data.users.map((user: any) => ({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            status: user.status === 'blocked' ? 'blocked' : 'active',
+            role: user.role,
+            createdAt: user.createdAt,
+          }))
+          setUsers(mappedUsers)
+        }
+      } catch (error) {
+        console.error('Failed to fetch users:', error)
+        addNotification({
+          id: Date.now().toString(),
+          type: 'error',
+          message: 'Failed to load users',
+          timestamp: new Date(),
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUsers()
+  }, [])
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =

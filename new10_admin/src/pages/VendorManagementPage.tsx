@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Card,
@@ -28,12 +28,11 @@ interface VendorData {
   id: string
   businessName: string
   ownerName: string
-  status: 'pending' | 'approved' | 'suspended' | 'blocked'
-  gst: string
-  equipmentCount: number
-  rating: number
-  verified: boolean
-  joined: string
+  status: string
+  businessReg: string
+  approved: boolean
+  blocked: boolean
+  createdAt: string
 }
 
 const mockVendors: VendorData[] = [
@@ -70,28 +69,44 @@ const mockVendors: VendorData[] = [
     verified: false,
     joined: '2024-01-05',
   },
-  {
-    id: '4',
-    businessName: 'Construction Plus',
-    ownerName: 'Meera Reddy',
-    status: 'suspended',
-    gst: '36AABCT9999E4Z8',
-    equipmentCount: 28,
-    rating: 2.3,
-    verified: true,
-    joined: '2023-03-20',
-  },
-]
 
 const VendorManagementPage: React.FC = () => {
   const { addNotification } = useStore()
-  const [vendors, setVendors] = useState(mockVendors)
+  const [vendors, setVendors] = useState<VendorData[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [actionDialogOpen, setActionDialogOpen] = useState(false)
   const [actionReason, setActionReason] = useState('')
   const [selectedVendor, setSelectedVendor] = useState<VendorData | null>(null)
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'suspend' | 'block' | 'verify' | null>(null)
+
+  // Fetch vendors from API on mount
+  useEffect(() => {
+    const fetchVendors = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('https://new10-yk1r.onrender.com/api/admin/vendors/list')
+        const data = await response.json()
+        
+        if (data.success && data.vendors) {
+          setVendors(data.vendors)
+        }
+      } catch (error) {
+        console.error('Failed to fetch vendors:', error)
+        addNotification({
+          id: Date.now().toString(),
+          type: 'error',
+          message: 'Failed to load vendors',
+          timestamp: new Date(),
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchVendors()
+  }, [])
 
   const filteredVendors = vendors.filter((vendor) => {
     const matchesSearch =

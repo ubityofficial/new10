@@ -459,6 +459,58 @@ const authRoutes = (app, supabase) => {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ============ ADMIN: GET ALL USERS ============
+  app.get('/api/admin/users', (req, res) => {
+    try {
+      const allUsers = Array.from(users.values()).map(user => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || 'N/A',
+        status: user.status,
+        role: user.role,
+        createdAt: user.createdAt?.toISOString?.() || new Date().toISOString(),
+      }));
+      
+      res.json({
+        success: true,
+        count: allUsers.length,
+        users: allUsers,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ============ ADMIN: GET ALL VENDORS (ENHANCED) ============
+  app.get('/api/admin/vendors/list', (req, res) => {
+    try {
+      const allVendors = Array.from(vendors.values()).map(vendor => {
+        const user = users.get(vendor.userId);
+        return {
+          id: vendor.id,
+          businessName: vendor.businessName || user?.name || 'N/A',
+          ownerName: user?.name || 'N/A',
+          ownerEmail: user?.email || 'N/A',
+          ownerPhone: user?.phone || 'N/A',
+          status: vendor.approved ? (vendor.blocked ? 'blocked' : 'approved') : 'pending',
+          businessReg: vendor.businessReg || 'N/A',
+          approved: vendor.approved,
+          blocked: vendor.blocked,
+          createdAt: vendor.createdAt?.toISOString?.() || new Date().toISOString(),
+        };
+      });
+      
+      res.json({
+        success: true,
+        count: allVendors.length,
+        vendors: allVendors,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 };
 
 module.exports = {
