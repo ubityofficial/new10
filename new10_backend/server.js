@@ -1470,19 +1470,21 @@ app.post('/api/seed-test-data', async (req, res) => {
   try {
     console.log('🌱 Seeding test data...');
 
+    // Use provided email or generate a unique one
+    const email = req.body.email || `test-vendor-${Date.now()}@example.com`;
+    
     // Create test user first (vendor owner)
     const { data: user, error: userError } = await supabase
       .from('users')
       .insert([
         {
           id: uuidv4(),
-          email: 'test-vendor@example.com',
+          email: email,
           password: 'TestVendor123!', // Plain text for demo - should be hashed in production
           name: 'Test Vendor',
           phone: '9876543210',
           role: 'vendor',
           status: 'active',
-          created_at: new Date(),
         },
       ])
       .select()
