@@ -78,13 +78,14 @@ const BannerManagementPage: React.FC = () => {
           timestamp: new Date(),
         })
       } else {
-        throw new Error('Failed to save banner')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save banner')
       }
     } catch (error) {
       addNotification({
         id: Date.now().toString(),
         type: 'error',
-        message: 'Failed to update banner image. Please try again.',
+        message: `Failed to update banner image: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date(),
       })
     } finally {

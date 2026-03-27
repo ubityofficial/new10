@@ -88,11 +88,15 @@ const PromotionsPage: React.FC = () => {
       if (response.ok) {
         const data = await response.json()
         setOfferCode(data.code || '')
-        setDiscountPercent(data.discountPercent.toString() || '')
+        setDiscountPercent(data.discountPercent ? data.discountPercent.toString() : '15')
         setOfferDescription(data.description || '')
       }
     } catch (error) {
       console.error('Error fetching offer settings:', error)
+      // Set default values on error
+      setOfferCode('RAPIDO15')
+      setDiscountPercent('15')
+      setOfferDescription('Get 15% off on heavy equipment rental!')
     } finally {
       setIsOfferFetching(false)
     }
@@ -125,13 +129,14 @@ const PromotionsPage: React.FC = () => {
           timestamp: new Date(),
         })
       } else {
-        throw new Error('Failed to save banner')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save banner')
       }
     } catch (error) {
       addNotification({
         id: Date.now().toString(),
         type: 'error',
-        message: 'Failed to update banner.',
+        message: `Failed to update banner: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date(),
       })
     } finally {
@@ -181,13 +186,14 @@ const PromotionsPage: React.FC = () => {
           timestamp: new Date(),
         })
       } else {
-        throw new Error('Failed to save offer')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save offer')
       }
     } catch (error) {
       addNotification({
         id: Date.now().toString(),
         type: 'error',
-        message: 'Failed to update offer.',
+        message: `Failed to update offer: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date(),
       })
     } finally {

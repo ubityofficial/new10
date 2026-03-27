@@ -84,18 +84,14 @@ const SettingsPage: React.FC = () => {
           timestamp: new Date(),
         })
       } else {
-        addNotification({
-          id: Date.now().toString(),
-          type: 'error',
-          message: 'Failed to update banner image URL',
-          timestamp: new Date(),
-        })
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to update banner image URL')
       }
     } catch (error) {
       addNotification({
         id: Date.now().toString(),
         type: 'error',
-        message: 'Error updating banner settings',
+        message: `Error updating banner settings: ${error instanceof Error ? error.message : 'Unknown error'}`,
         timestamp: new Date(),
       })
     } finally {
