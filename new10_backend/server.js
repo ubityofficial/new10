@@ -1517,6 +1517,7 @@ app.post('/api/seed-test-data', async (req, res) => {
     // Create test services
     const serviceNames = ['Excavator', 'Bulldozer', 'Crane', 'Compressor', 'Generator'];
     const services = [];
+    const serviceErrors = [];
 
     for (const name of serviceNames) {
       const { data: service, error: serviceError } = await supabase
@@ -1537,16 +1538,17 @@ app.post('/api/seed-test-data', async (req, res) => {
         .single();
 
       if (serviceError) {
-        console.error('Error creating service:', name, serviceError);
-      }
-
-      if (service) {
+        console.error('❌ Error creating service:', name, serviceError);
+        serviceErrors.push({ name, error: serviceError.message });
+      } else if (service) {
+        console.log('✅ Created service:', name);
         services.push(service);
       }
     }
 
     // Create vendor_services entries for each service
     const vendorServices = [];
+    const vsErrors = [];
     const districts = ['Bangalore', 'Hyderabad', 'Chennai', 'Pune', 'Delhi'];
 
     for (let i = 0; i < services.length; i++) {
@@ -1561,13 +1563,16 @@ app.post('/api/seed-test-data', async (req, res) => {
             duration: '8 hours',
             location: districts[i % districts.length],
             availability: true,
-            created_at: new Date(),
           },
         ])
         .select()
         .single();
 
-      if (vs) {
+      if (vsError) {
+        console.error('❌ Error creating vendor_service:', vsError);
+        vsErrors.push({ serviceId: services[i].id, error: vsError.message });
+      } else if (vs) {
+        console.log('✅ Created vendor_service for:', services[i].name);
         vendorServices.push(vs);
       }
     }
@@ -1579,6 +1584,8 @@ app.post('/api/seed-test-data', async (req, res) => {
       vendor: vendor,
       servicesCreated: services.length,
       vendorServicesCreated: vendorServices.length,
+      serviceErrors: serviceErrors.length > 0 ? serviceErrors : undefined,
+      vsErrors: vsErrors.length > 0 ? vsErrors : undefined,
     });
   } catch (err) {
     console.error('Seed error:', err);
