@@ -1465,6 +1465,101 @@ app.get('/api/districts', (req, res) => {
   });
 });
 
+// SEED TEST DATA (for development)
+app.post('/api/seed-test-data', async (req, res) => {
+  try {
+    console.log('🌱 Seeding test data...');
+
+    // Create test vendor
+    const { data: vendor, error: vendorError } = await supabase
+      .from('vendors')
+      .insert([
+        {
+          id: uuidv4(),
+          user_id: uuidv4(),
+          business_name: 'SLV Machineries',
+          description: 'Heavy equipment rental services',
+          status: 'active',
+          approved: true,
+          created_at: new Date(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (vendorError) {
+      console.error('Error creating vendor:', vendorError);
+      return res.status(500).json({ error: 'Failed to create vendor: ' + vendorError.message });
+    }
+
+    // Create test services
+    const serviceNames = ['Excavator', 'Bulldozer', 'Crane', 'Compressor', 'Generator'];
+    const services = [];
+
+    for (const name of serviceNames) {
+      const { data: service, error: serviceError } = await supabase
+        .from('services')
+        .insert([
+          {
+            id: uuidv4(),
+            name: name,
+            description: `High-quality ${name.toLowerCase()} for rent`,
+            category: 'Heavy Equipment',
+            image1: 'https://via.placeholder.com/400?text=' + name,
+            image2: 'https://via.placeholder.com/400?text=' + name + '2',
+            rating: 4.5,
+            reviews: Math.floor(Math.random() * 100) + 10,
+            created_at: new Date(),
+          },
+        ])
+        .select()
+        .single();
+
+      if (service) {
+        services.push(service);
+      }
+    }
+
+    // Create vendor_services entries for each service
+    const vendorServices = [];
+    const districts = ['Bangalore', 'Hyderabad', 'Chennai', 'Pune', 'Delhi'];
+
+    for (let i = 0; i < services.length; i++) {
+      const { data: vs, error: vsError } = await supabase
+        .from('vendor_services')
+        .insert([
+          {
+            id: uuidv4(),
+            vendor_id: vendor.id,
+            service_id: services[i].id,
+            pricing: 5000 + (i * 1000),
+            duration: '8 hours',
+            location: districts[i % districts.length],
+            availability: true,
+            created_at: new Date(),
+          },
+        ])
+        .select()
+        .single();
+
+      if (vs) {
+        vendorServices.push(vs);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Test data seeded successfully',
+      vendor: vendor,
+      servicesCreated: services.length,
+      vendorServicesCreated: vendorServices.length,
+    });
+  } catch (err) {
+    console.error('Seed error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });
