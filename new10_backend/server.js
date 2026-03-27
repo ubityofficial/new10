@@ -540,10 +540,6 @@ app.get('/api/offer', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // UPDATE offer data in database
 app.post('/api/offer', async (req, res) => {
