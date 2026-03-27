@@ -78,4 +78,8 @@ class Service {
       'serviceType': serviceType,
     };
   }
+
+  Map<String, dynamic> toJson() {
+    return toMap();
+  }
 }

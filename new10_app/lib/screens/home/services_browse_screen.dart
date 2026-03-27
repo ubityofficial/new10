@@ -28,6 +28,10 @@ class _ServicesBrowseScreenState extends State<ServicesBrowseScreen> {
     _loadServicesWithCache();
   }
 
+  Future<void> _loadServices() async {
+    await _loadServicesWithCache();
+  }
+
   Future<void> _loadServicesWithCache() async {
     // Load cached data first
     final cachedServices = await CacheService.getCachedServices();

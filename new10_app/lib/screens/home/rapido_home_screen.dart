@@ -617,16 +617,6 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                       backgroundColor: Colors.grey.shade700,
                     ),
                   ),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
                   
                   // Light overlay for text readability
                   Container(
@@ -822,15 +812,11 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   Widget _buildQuickServiceCardWithImage(Service service) {
     return GestureDetector(
       onTap: () {
-        // Navigate to listing page
-        Navigator.push(
+        // Navigate to vendor listing page
+        Navigator.pushNamed(
           context,
-          MaterialPageRoute(
-            builder: (context) => ServiceListingPage(
-              serviceName: service.name,
-              image: service.image1,
-            ),
-          ),
+          '/vendor-listing',
+          arguments: service.name,
         );
       },
       child: Container(
