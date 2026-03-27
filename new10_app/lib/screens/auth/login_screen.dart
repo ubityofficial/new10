@@ -15,7 +15,6 @@ class _LoginScreenState extends State<LoginScreen> {
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
   bool obscurePassword = true;
-  bool isLoading = false;
 
   @override
   void initState() {
@@ -39,24 +38,25 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() => isLoading = true);
     final authProvider = context.read<AuthProvider>();
-
     final success = await authProvider.login(
       email: _emailController.text,
       password: _passwordController.text,
       isUser: authProvider.isUser,
     );
 
-    setState(() => isLoading = false);
-
     if (success && mounted) {
       // Route to appropriate dashboard based on user type
       final route = authProvider.isUser ? '/home' : '/vendor';
       Navigator.pushReplacementNamed(context, route);
-    } else {
+    } else if (mounted) {
+      final errorMsg = authProvider.errorMessage ?? 'Login failed. Please try again.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Please try again.')),
+        SnackBar(
+          content: Text(errorMsg),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 3),
+        ),
       );
     }
   }
@@ -183,10 +183,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     // SIGN IN BUTTON
-                    _primaryButton(
-                      'Sign in',
-                      isLoading,
-                      _handleLogin,
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, _) {
+                        return _primaryButton(
+                          'Sign in',
+                          authProvider.isLoading,
+                          _handleLogin,
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                     // GOOGLE SIGN IN

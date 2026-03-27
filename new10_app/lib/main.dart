@@ -16,7 +16,7 @@ import 'screens/checkout/checkout_screen.dart';
 import 'providers/auth_provider.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Set full-screen immersive mode
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -40,7 +40,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(
+          create: (_) => AuthProvider()..initializeAuth(),
+        ),
       ],
       child: MaterialApp(
         title: 'new10 - Equipment Booking',
@@ -48,6 +50,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         home: Consumer<AuthProvider>(
           builder: (context, authProvider, _) {
+            // Show loading while auth is initializing
             if (!authProvider.isAuthenticated) {
               return const LoginScreen();
             }
