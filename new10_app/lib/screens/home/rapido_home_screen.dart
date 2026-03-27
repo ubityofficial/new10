@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'dart:ui';
 import 'dart:convert';
@@ -281,7 +282,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Go Places with Rapido',
+                        'Book Your Equipments now',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -433,7 +434,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
               ),
               child: Stack(
                 children: [
-                  // Dark overlay for text readability
+                  // Light overlay for text readability - Banner stays BRIGHT
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(20),
@@ -441,8 +442,8 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
                         colors: [
-                          Colors.black.withOpacity(0.3),
-                          Colors.black.withOpacity(0.6),
+                          Colors.black.withOpacity(0.1),
+                          Colors.black.withOpacity(0.25),
                         ],
                       ),
                     ),
@@ -753,21 +754,50 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Code: $code',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black,
+                    GestureDetector(
+                      onTap: () {
+                        // Copy code to clipboard
+                        Clipboard.setData(ClipboardData(text: code)).then((_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('✅ Copied: $code'),
+                              duration: const Duration(seconds: 1),
+                              backgroundColor: Colors.green.shade600,
+                            ),
+                          );
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: Colors.black.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Code: $code',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              Icons.content_copy,
+                              size: 9,
+                              color: Colors.black,
+                            ),
+                          ],
                         ),
                       ),
                     ),
