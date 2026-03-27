@@ -1763,6 +1763,31 @@ app.get('/api/vendors-by-service/:serviceName', async (req, res) => {
     const serviceName = req.params.serviceName;
     const location = req.query.location; // Optional location filter
 
+    // Mock vendor data for JCB, Trucks, Road Roller
+    const mockVendorData = {
+      'JCB': {
+        vendors: [
+          { vendor_id: 'mock-1', business_name: 'SLV Cranes & Machinery', pricing: 5000, location: 'Bangalore', availability: true, isOnline: true },
+          { vendor_id: 'mock-2', business_name: 'Balaji Equipment Rentals', pricing: 4500, location: 'Mysore', availability: true, isOnline: true },
+          { vendor_id: 'mock-3', business_name: 'Krishna Heavy Machinery', pricing: 5500, location: 'Bangalore', availability: true, isOnline: false },
+        ]
+      },
+      'Trucks': {
+        vendors: [
+          { vendor_id: 'mock-4', business_name: 'Balaji Trucks Transport', pricing: 2500, location: 'Bangalore', availability: true, isOnline: true },
+          { vendor_id: 'mock-5', business_name: 'Fast Logistics Pvt Ltd', pricing: 2800, location: 'Mangalore', availability: true, isOnline: true },
+          { vendor_id: 'mock-6', business_name: 'SafeMove Transporters', pricing: 3000, location: 'Bangalore', availability: true, isOnline: true },
+        ]
+      },
+      'Road Roller': {
+        vendors: [
+          { vendor_id: 'mock-7', business_name: 'Metro Construction Equipment', pricing: 6000, location: 'Bangalore', availability: true, isOnline: true },
+          { vendor_id: 'mock-8', business_name: 'Tata Road Solutions', pricing: 6500, location: 'Bangalore', availability: true, isOnline: false },
+          { vendor_id: 'mock-9', business_name: 'Pavement Experts Inc', pricing: 5800, location: 'Hassan', availability: true, isOnline: true },
+        ]
+      }
+    };
+
     // First, get the service by name
     const { data: service, error: serviceError } = await supabase
       .from('services')
@@ -1771,7 +1796,21 @@ app.get('/api/vendors-by-service/:serviceName', async (req, res) => {
       .single();
 
     if (serviceError || !service) {
-      return res.status(404).json({ error: 'Service not found' });
+      // If service not found, return mock service with mock vendors
+      const mockData = mockVendorData[serviceName] || { vendors: [] };
+      const emoji = serviceName === 'JCB' ? '🏗️' : serviceName === 'Trucks' ? '🚚' : '⚙️';
+      
+      return res.json({
+        service: {
+          id: `mock-${serviceName}`,
+          name: serviceName,
+          category: 'Heavy Equipment',
+          image1: null,
+          image2: null,
+          emoji: emoji,
+        },
+        vendors: mockData.vendors,
+      });
     }
 
     // Get all vendors offering this service
