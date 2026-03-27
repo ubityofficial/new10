@@ -1477,9 +1477,11 @@ app.post('/api/seed-test-data', async (req, res) => {
         {
           id: uuidv4(),
           email: 'test-vendor@example.com',
+          password: 'TestVendor123!', // Plain text for demo - should be hashed in production
+          name: 'Test Vendor',
           phone: '9876543210',
-          full_name: 'Test Vendor',
           role: 'vendor',
+          status: 'active',
           created_at: new Date(),
         },
       ])
