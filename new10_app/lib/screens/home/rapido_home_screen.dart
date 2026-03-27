@@ -8,7 +8,10 @@ import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../services/service_api_client.dart';
 import '../../services/image_cache_service.dart';
+import '../../services/cache_service.dart';
 import '../../models/service_model.dart';
+import '../../widgets/skeleton_loaders.dart';
+import '../../widgets/cached_image.dart';
 import '../listing/service_listing_page.dart';
 import 'all_services_page.dart';
 
@@ -29,17 +32,20 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   // API State
   List<Service> _apiServices = [];
   bool _isLoadingServices = false;
+  bool _isRefreshingServices = false; // For background refresh (non-blocking)
   String? _servicesError;
 
   // Banner Settings
   String _bannerImageUrl = 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80';
   bool _isLoadingBannerSettings = false;
+  bool _isRefreshingBanner = false;
 
   // Offer/Promotion Data
   String? _offerCode;
   int? _discountPercent;
   String? _offerDescription;
   bool _isLoadingOffer = false;
+  bool _isRefreshingOffer = false;
 
   // Mock data
   final List<Map<String, dynamic>> categories = [
@@ -86,109 +92,185 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   @override
   void initState() {
     super.initState();
-    _loadServices();
-    _loadBannerSettings();
-    _loadPromotions();
+    // Load cached data immediately for instant UI
+    _loadCachedData();
+    // Fetch fresh data in background (non-blocking)
+    _fetchFreshDataInBackground();
   }
 
-  Future<void> _loadServices() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoadingServices = true;
-      _servicesError = null;
-    });
+  // Load cached data instantly (no waiting)
+  Future<void> _loadCachedData() async {
+    print('📦 Loading cached data...');
+   
+    // Load services from cache
+    final cachedServices = await CacheService.getCachedServices();
+    if (cachedServices != null && cachedServices.isNotEmpty) {
+      final services = cachedServices
+          .map((s) => Service.fromJson(s as Map<String, dynamic>))
+          .toList();
+      if (mounted) {
+        setState(() {
+          _apiServices = services;
+          print('✅ Loaded ${_apiServices.length} services from cache');
+        });
+      }
+    }
 
+    // Load banner from cache
+    final cachedBanner = await CacheService.getCachedBanner();
+    if (cachedBanner != null && cachedBanner['bannerImageUrl'] != null) {
+      if (mounted) {
+        setState(() {
+          _bannerImageUrl = cachedBanner['bannerImageUrl'];
+          print('✅ Loaded banner from cache');
+        });
+      }
+    }
+
+    // Load promotions from cache
+    final cachedPromos = await CacheService.getCachedPromotions();
+    if (cachedPromos != null) {
+      if (mounted) {
+        setState(() {
+          _offerCode = cachedPromos['code'];
+          _discountPercent = cachedPromos['discountPercent'];
+          _offerDescription = cachedPromos['description'];
+          print('✅ Loaded promotions from cache: $_offerCode');
+        });
+      }
+    }
+  }
+
+  // Fetch fresh data in background (non-blocking)
+  Future<void> _fetchFreshDataInBackground() async {
+    print('🔄 Fetching fresh data in background...');
+    
+    // Start all 3 fetches in parallel
+    await Future.wait([
+      _loadServicesFresh(),
+      _loadBannerFresh(),
+      _loadPromotionsFresh(),
+    ], eagerError: false);
+    
+    print('✅ Background data fetch complete');
+  }
+
+  // Fetch fresh services (updates UI if data changed)
+  Future<void> _loadServicesFresh() async {
+    if (!mounted) return;
     try {
+      // Only show loading if we don't have cached data
+      if (_apiServices.isEmpty) {
+        setState(() => _isLoadingServices = true);
+      } else {
+        setState(() => _isRefreshingServices = true);
+      }
+
       final services = await ServiceApiClient.getServices();
       if (!mounted) return;
+
       setState(() {
         _apiServices = services;
         _isLoadingServices = false;
+        _isRefreshingServices = false;
       });
 
-      // Preload images for faster display
+      // Cache the freshl loaded data
+      await CacheService.setCachedServices(
+        services.map((s) => s.toJson()).toList() as List<dynamic>,
+      );
+
+      print('✅ Fresh services loaded and cached: ${services.length}');
       _preloadServiceImages(services);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _servicesError = 'Failed to load services: $e';
         _isLoadingServices = false;
+        _isRefreshingServices = false;
       });
+      print('❌ Error loading fresh services: $e');
     }
   }
 
-  Future<void> _preloadServiceImages(List<Service> services) async {
-    // Preload ALL service images in parallel for faster display
-    final futures = <Future>[];
-    
-    for (var service in services) {
-      if (service.image1 != null && service.image1!.isNotEmpty) {
-        futures.add(
-          precacheImage(
-            NetworkImage(service.image1!),
-            context,
-          ).catchError((e) => print('Image preload failed: $e')),
-        );
-      }
-    }
-    
-    // Wait for all images to preload in parallel
-    try {
-      await Future.wait(futures, eagerError: false);
-      print('✅ All ${futures.length} service images preloaded successfully');
-    } catch (e) {
-      print('Preload error: $e');
-    }
-  }
-
-  Future<void> _loadBannerSettings() async {
+  // Fetch fresh banner (updates UI if data changed)
+  Future<void> _loadBannerFresh() async {
     if (!mounted) return;
-    setState(() {
-      _isLoadingBannerSettings = true;
-    });
-
     try {
+      if (_bannerImageUrl.isEmpty) {
+        setState(() => _isLoadingBannerSettings = true);
+      } else {
+        setState(() => _isRefreshingBanner = true);
+      }
+
       final response = await ServiceApiClient.getAppSettings();
       if (!mounted) return;
+
       setState(() {
-        _bannerImageUrl = response['bannerImageUrl'] ?? _bannerImageUrl;
+        final newUrl = response['bannerImageUrl'] as String?;
+        if (newUrl != null && newUrl.isNotEmpty) {
+          _bannerImageUrl = newUrl;
+        }
         _isLoadingBannerSettings = false;
+        _isRefreshingBanner = false;
       });
+
+      // Cache banner
+      await CacheService.setCachedBanner(response);
+      print('✅ Fresh banner loaded and cached');
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoadingBannerSettings = false;
+        _isRefreshingBanner = false;
       });
-      // Use default banner image if fetch fails
+      print('⚠️ Error loading fresh banner: $e');
     }
   }
 
-  Future<void> _loadPromotions() async {
+  // Fetch fresh promotions (updates UI if data changed)
+  Future<void> _loadPromotionsFresh() async {
     if (!mounted) return;
-    setState(() {
-      _isLoadingOffer = true;
-    });
-
     try {
-      final response = await http.get(
-        Uri.parse('https://new10-yk1r.onrender.com/api/promotions'),
-      ).timeout(const Duration(seconds: 10));
+      if (_offerCode == null) {
+        setState(() => _isLoadingOffer = true);
+      } else {
+        setState(() => _isRefreshingOffer = true);
+      }
 
-      if (response.statusCode == 200) {
+      final response = await http
+          .get(
+            Uri.parse('https://new10-yk1r.onrender.com/api/promotions'),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200 && mounted) {
         final data = json.decode(response.body);
-        if (mounted) {
-          setState(() {
-            _offerCode = data['offer']?['code'];
-            _discountPercent = data['offer']?['discountPercent'];
-            _offerDescription = data['offer']?['description'];
-            _isLoadingOffer = false;
-          });
-          print('✅ Promotions loaded: $_offerCode - $_discountPercent%');
-        }
+        setState(() {
+          _offerCode = data['offer']?['code'];
+          _discountPercent = data['offer']?['discountPercent'];
+          _offerDescription = data['offer']?['description'];
+          _isLoadingOffer = false;
+          _isRefreshingOffer = false;
+        });
+
+        // Cache promotions
+        await CacheService.setCachedPromotions({
+          'code': _offerCode,
+          'discountPercent': _discountPercent,
+          'description': _offerDescription,
+        });
+        
+        print('✅ Fresh promotions loaded and cached: $_offerCode');
       }
     } catch (e) {
-      print('Error loading promotions: $e');
-      if (mounted) setState(() => _isLoadingOffer = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingOffer = false;
+          _isRefreshingOffer = false;
+        });
+      }
+      print('⚠️ Error loading fresh promotions: $e');
     }
   }
 
@@ -271,10 +353,12 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
 
               // Promo Banner
               if (_showPromoCard)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _buildPromoBanner(),
-                ),
+                _isLoadingOffer && _offerCode == null
+                    ? const SkeletonPromoCard()
+                    : Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: _buildPromoBanner(),
+                      ),
               if (_showPromoCard) const SizedBox(height: 28),
 
               // "Go Places with Rapido" Categories
@@ -316,7 +400,18 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                       ],
                     ),
                     const SizedBox(height: 10),
-                    _buildCategoryScroll(),
+                    _apiServices.isEmpty && _isLoadingServices
+                        ? SizedBox(
+                            height: 120,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              itemCount: 4,
+                              itemBuilder: (context, index) =>
+                                  const SkeletonServiceCard(),
+                            ),
+                          )
+                        : _buildCategoryScroll(),
                   ],
                 ),
               ),
@@ -349,14 +444,34 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
     );
   }
 
-  // Handle refresh - reload all data
+  Future<void> _preloadServiceImages(List<Service> services) async {
+    // Preload ALL service images in parallel for faster display
+    final futures = <Future>[];
+    
+    for (var service in services) {
+      if (service.image1 != null && service.image1!.isNotEmpty) {
+        futures.add(
+          precacheImage(
+            NetworkImage(service.image1!),
+            context,
+          ).catchError((e) => print('Image preload failed: $e')),
+        );
+      }
+    }
+    
+    // Wait for all images to preload in parallel
+    try {
+      await Future.wait(futures, eagerError: false);
+      print('✅ All ${futures.length} service images preloaded successfully');
+    } catch (e) {
+      print('Preload error: $e');
+    }
+  }
+
+  // Handle refresh - reload all data from server
   Future<void> _handleRefresh() async {
     print('🔄 Refreshing home screen data...');
-    await Future.wait([
-      _loadServices(),
-      _loadBannerSettings(),
-      _loadPromotions(),
-    ]);
+    await _fetchFreshDataInBackground();
     print('✅ Home screen data refreshed');
   }
 
@@ -443,59 +558,17 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
               ),
               child: Stack(
                 children: [
-                  // Background Image with loading & error handling
+                  // Background Image with caching & shimmer loading
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: Image.network(
-                      _bannerImageUrl,
-                      fit: BoxFit.cover,
+                    child: CachedImage(
+                      imageUrl: _bannerImageUrl,
                       width: double.infinity,
                       height: 160,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return Container(
-                          color: Colors.grey.shade700,
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.yellow.shade700,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        print('🔴 Banner image load error: $error');
-                        // Show gradient fallback on error
-                        return Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                Colors.yellow.shade600,
-                                Colors.orange.shade600,
-                              ],
-                            ),
-                          ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.construction,
-                                  size: 40,
-                                  color: Colors.white.withOpacity(0.7),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Loading Equipment',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(20),
+                      backgroundColor: Colors.grey.shade700,
+                    ),
+                  ),
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -1041,21 +1114,12 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
             child: service.image1 != null && service.image1!.isNotEmpty
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      service.image1!,
-                      fit: BoxFit.cover,
-                      cacheHeight: 120,
-                      cacheWidth: 120,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey.shade300,
-                          child: Icon(
-                            Icons.image_not_supported,
-                            color: Colors.grey.shade600,
-                            size: 22,
-                          ),
-                        );
-                      },
+                    child: CachedImage(
+                      imageUrl: service.image1!,
+                      width: 56,
+                      height: 56,
+                      borderRadius: BorderRadius.circular(12),
+                      backgroundColor: Colors.grey.shade200,
                     ),
                   )
                 : Container(
