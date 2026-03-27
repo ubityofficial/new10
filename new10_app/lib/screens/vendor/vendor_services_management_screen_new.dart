@@ -764,13 +764,15 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                   flex: 1,
                   child: DropdownButtonFormField<String>(
                     value: _pricingUnit,
+                    isDense: true,
+                    isExpanded: true,
                     onChanged: (value) {
                       setState(() => _pricingUnit = value ?? 'per day');
                     },
                     items: ['per day', 'per hour', 'per unit']
                         .map((unit) => DropdownMenuItem(
                               value: unit,
-                              child: Text(unit),
+                              child: Text(unit, style: const TextStyle(fontSize: 12)),
                             ))
                         .toList(),
                     decoration: InputDecoration(
@@ -779,7 +781,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 8,
-                        vertical: 10,
+                        vertical: 8,
                       ),
                     ),
                   ),
@@ -863,13 +865,15 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: _availability,
+              isDense: true,
+              isExpanded: true,
               onChanged: (value) {
                 setState(() => _availability = value ?? 'available');
               },
               items: ['available', 'limited', 'unavailable']
                   .map((status) => DropdownMenuItem(
                         value: status,
-                        child: Text(status.capitalize()),
+                        child: Text(status.capitalize(), style: const TextStyle(fontSize: 12)),
                       ))
                   .toList(),
               decoration: InputDecoration(
@@ -878,7 +882,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
-                  vertical: 10,
+                  vertical: 8,
                 ),
               ),
             ),
