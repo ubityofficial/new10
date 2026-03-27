@@ -118,7 +118,7 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
-                            _isOnline ? Icons.power_settings_active : Icons.power_settings_new,
+                            _isOnline ? Icons.power_settings_new : Icons.power_settings_new,
                             color: Colors.white,
                             size: 24,
                           ),
@@ -162,14 +162,14 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
               'Company Name',
               'Heavy Equipment Solutions',
             ),
-            _buildProfileInfoCard(
-              context,
-              'Email Address',
-              Consumer<AuthProvider>(
-                builder: (context, authProvider, _) {
-                  return authProvider.userEmail;
-                },
-              ),
+            Consumer<AuthProvider>(
+              builder: (context, authProvider, _) {
+                return _buildProfileInfoCard(
+                  context,
+                  'Email Address',
+                  authProvider.userEmail,
+                );
+              },
             ),
             _buildProfileInfoCard(
               context,
@@ -324,7 +324,7 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
     );
   }
 
-  Widget _buildProfileInfoCard(BuildContext context, String label, dynamic value) {
+  Widget _buildProfileInfoCard(BuildContext context, String label, String value) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -346,7 +346,7 @@ class _VendorProfileScreenState extends State<VendorProfileScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            value is String ? value : value.toString(),
+            value,
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
