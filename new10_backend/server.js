@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
 const authRoutes = require('./auth');
 const { initializeDatabase } = require('./initializeDatabase');
+const vendorServicesRouter = require('./routes/vendorServices');
 require('dotenv').config();
 
 const app = express();
@@ -30,20 +31,9 @@ initializeDatabase().catch(err => console.error('⚠️ Database init warning:',
 // ============ INITIALIZE AUTH ROUTES ============
 authRoutes(app, supabase);
 
-// Mock database (for vendor services)
-let vendorServices = [
-  {
-    id: '1',
-    vendorId: 'vendor1',
-    serviceId: '1',
-    pricing: 5000,
-    duration: '8 hours',
-    location: 'Mumbai',
-    timings: { start: '08:00', end: '18:00' },
-    availability: true,
-    createdAt: new Date(),
-  },
-];
+// ============ INITIALIZE VENDOR SERVICES ROUTES ============
+app.use('/api', vendorServicesRouter);
+
 
 // ============ SERVICES CRUD (Supabase) ============
 
@@ -378,127 +368,24 @@ app.delete('/api/services/:id', async (req, res) => {
   }
 });
 
-// ============ VENDOR SERVICES ============
+// ============ VENDOR SERVICES (Now in routes/vendorServices.js) ============
+// All vendor service endpoints are registered via the vendorServicesRouter above
+// This includes:
+// - GET /api/vendor/:vendorId/services
+// - POST /api/vendor/:vendorId/services
+// - PUT /api/vendor/services/:vendorServiceId
+// - DELETE /api/vendor/services/:vendorServiceId
+// - GET /api/services/:serviceId/vendors
+// - GET /api/services
+// - GET /api/vendors-by-service/:serviceName
 
-// GET vendor's services
-app.get('/api/vendor/:vendorId/services', (req, res) => {
-  const vs = vendorServices.filter(vs => vs.vendorId === req.params.vendorId);
-  
-  // Enrich with service details
-  const enriched = vs.map(vendorService => {
-    const service = services.find(s => s.id === vendorService.serviceId);
-    return { ...vendorService, service };
-  });
-  
-  res.json(enriched);
-});
 
-// ADD service to vendor
-app.post('/api/vendor/:vendorId/services', (req, res) => {
-  try {
-    const { serviceId, pricing, duration, location, timings } = req.body;
+// ============ USER BROWSING (Now in routes/vendorServices.js) ============
 
-    if (!serviceId || !pricing || !duration || !location) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Check if service exists
-    if (!services.find(s => s.id === serviceId)) {
-      return res.status(404).json({ error: 'Service not found' });
-    }
-
-    // Check if vendor already has this service
-    if (vendorServices.find(vs => vs.vendorId === req.params.vendorId && vs.serviceId === serviceId)) {
-      return res.status(400).json({ error: 'Vendor already has this service' });
-    }
-
-    const newVendorService = {
-      id: Date.now().toString(),
-      vendorId: req.params.vendorId,
-      serviceId,
-      pricing,
-      duration,
-      location,
-      timings: timings || { start: '09:00', end: '18:00' },
-      availability: true,
-      createdAt: new Date(),
-    };
-
-    vendorServices.push(newVendorService);
-    res.status(201).json(newVendorService);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// UPDATE vendor service
-app.put('/api/vendor/:vendorId/services/:vendorServiceId', (req, res) => {
-  try {
-    const vs = vendorServices.find(
-      v => v.id === req.params.vendorServiceId && v.vendorId === req.params.vendorId
-    );
-
-    if (!vs) return res.status(404).json({ error: 'Vendor service not found' });
-
-    const { pricing, duration, location, timings, availability } = req.body;
-    if (pricing !== undefined) vs.pricing = pricing;
-    if (duration) vs.duration = duration;
-    if (location) vs.location = location;
-    if (timings) vs.timings = timings;
-    if (availability !== undefined) vs.availability = availability;
-
-    res.json(vs);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// DELETE vendor service
-app.delete('/api/vendor/:vendorId/services/:vendorServiceId', (req, res) => {
-  const index = vendorServices.findIndex(
-    v => v.id === req.params.vendorServiceId && v.vendorId === req.params.vendorId
-  );
-
-  if (index === -1) return res.status(404).json({ error: 'Vendor service not found' });
-
-  const deleted = vendorServices.splice(index, 1);
-  res.json(deleted[0]);
-});
-
-// ============ USER BROWSING ============
-
-// GET all services (user browsing)
-app.get('/api/user/services', async (req, res) => {
-  try {
-    const category = req.query.category;
-    let query = supabase.from('services').select('*');
-
-    if (category) {
-      query = query.eq('category', category);
-    }
-
-    const { data, error } = await query;
-    if (error) return res.status(400).json({ error: error.message });
-    res.json(data || []);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET vendors offering a specific service
-app.get('/api/services/:serviceId/vendors', (req, res) => {
-  const venforServices = vendorServices.filter(vs => vs.serviceId === req.params.serviceId);
-  
-  // Enrich with service and vendor details (mock)
-  const enriched = venforServices.map(vs => ({
-    ...vs,
-    vendorName: `Vendor ${vs.vendorId}`,
-    vendorRating: 4.5,
-    vendorReviews: 120,
-  }));
-
-  res.json(enriched);
-});
+// All vendor browsing endpoints are now handled by vendorServicesRouter:
+// - GET /api/services/:serviceId/vendors (find vendors for a service)
+// - GET /api/services (all services with vendor counts)
+// - GET /api/vendors-by-service/:serviceName (search vendors by service name)
 
 // ============ APP SETTINGS (Supabase Database) ============
 

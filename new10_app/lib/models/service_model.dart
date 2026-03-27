@@ -7,6 +7,7 @@ class Service {
   final String? image2;
   final double rating;
   final int reviews;
+  final int? vendorCount; // Number of vendors offering this service
   
   // New fields for vendor and listing info
   final String vendorId;
@@ -27,6 +28,7 @@ class Service {
     this.image2,
     this.rating = 0.0,
     this.reviews = 0,
+    this.vendorCount,
     this.vendorId = '',
     this.vendorName = 'Vendor',
     this.location = 'Karnataka',
@@ -47,6 +49,7 @@ class Service {
       image2: json['image2'],
       rating: (json['rating'] ?? 0).toDouble(),
       reviews: json['reviews'] ?? 0,
+      vendorCount: json['vendor_count'] ?? json['vendorCount'],
       vendorId: json['vendorId'] ?? json['vendor_id'] ?? '',
       vendorName: json['vendorName'] ?? json['vendor_name'] ?? 'Vendor',
       location: json['location'] ?? json['district'] ?? 'Karnataka',
@@ -68,6 +71,7 @@ class Service {
       'image2': image2,
       'rating': rating,
       'reviews': reviews,
+      'vendor_count': vendorCount,
       'vendorId': vendorId,
       'vendorName': vendorName,
       'location': location,
