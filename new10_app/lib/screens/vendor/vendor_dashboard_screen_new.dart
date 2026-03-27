@@ -30,6 +30,7 @@ class _VendorDashboardScreenNewState extends State<VendorDashboardScreenNew> {
               'Vendor Dashboard',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
+                color: Colors.white,
               ),
             );
           },

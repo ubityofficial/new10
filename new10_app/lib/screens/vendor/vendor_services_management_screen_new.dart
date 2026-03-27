@@ -110,7 +110,13 @@ class _VendorServicesManagementScreenNewState
       appBar: AppBar(
         backgroundColor: AppTheme.cardBackground,
         elevation: 0,
-        title: const Text('Manage Services'),
+        title: const Text(
+          'Manage Services',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppTheme.primaryColor,
@@ -641,6 +647,36 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
   String _availability = 'available';
   bool _isOnline = true;
 
+  List<String> _getKarnatakaCities() {
+    return [
+      'Bangalore',
+      'Belgaum',
+      'Bellary',
+      'Bidar',
+      'Bijapur',
+      'Chamrajnagar',
+      'Chikballapur',
+      'Chikmagalur',
+      'Chitradurga',
+      'Davanagere',
+      'Dharwad',
+      'Gadag',
+      'Gulbarga',
+      'Hassan',
+      'Haveri',
+      'Kolar',
+      'Kodagu',
+      'Kolar Gold Fields',
+      'Mandya',
+      'Mangalore',
+      'Mysore',
+      'Raichur',
+      'Shimoga',
+      'Tumkur',
+      'Udupi',
+    ];
+  }
+
   @override
   void initState() {
     super.initState();
@@ -746,6 +782,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                   child: TextFormField(
                     controller: _priceController,
                     keyboardType: TextInputType.number,
+                    style: const TextStyle(color: Colors.black),
                     decoration: InputDecoration(
                       hintText: 'Enter price',
                       prefixText: '₹ ',
@@ -756,6 +793,8 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                         horizontal: 12,
                         vertical: 10,
                       ),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                   ),
                 ),
@@ -772,7 +811,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                     items: ['per day', 'per hour', 'per unit']
                         .map((unit) => DropdownMenuItem(
                               value: unit,
-                              child: Text(unit, style: const TextStyle(fontSize: 12)),
+                              child: Text(unit, style: const TextStyle(fontSize: 12, color: Colors.black)),
                             ))
                         .toList(),
                     decoration: InputDecoration(
@@ -783,6 +822,8 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                         horizontal: 8,
                         vertical: 8,
                       ),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                   ),
                 ),
@@ -796,18 +837,29 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
               style: Theme.of(context).textTheme.labelLarge,
             ),
             const SizedBox(height: 8),
-            TextFormField(
-              controller: _locationController,
+            DropdownButtonFormField<String>(
+              value: _locationController.text.isEmpty ? null : _locationController.text,
+              onChanged: (value) {
+                _locationController.text = value ?? '';
+              },
+              items: _getKarnatakaCities()
+                  .map((city) => DropdownMenuItem(
+                        value: city,
+                        child: Text(city),
+                      ))
+                  .toList(),
               decoration: InputDecoration(
-                hintText: 'e.g., Mumbai, Bangalore',
+                hintText: 'Select location',
                 prefixIcon: const Icon(Icons.location_on),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
-                  vertical: 10,
+                  vertical: 12,
                 ),
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
             const SizedBox(height: 16),
@@ -823,6 +875,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                 Expanded(
                   child: TextFormField(
                     controller: _startTimeController,
+                    style: const TextStyle(color: Colors.black),
                     decoration: InputDecoration(
                       hintText: 'Start time',
                       prefixIcon: const Icon(Icons.schedule),
@@ -833,6 +886,8 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                         horizontal: 12,
                         vertical: 10,
                       ),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                   ),
                 ),
@@ -840,6 +895,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                 Expanded(
                   child: TextFormField(
                     controller: _endTimeController,
+                    style: const TextStyle(color: Colors.black),
                     decoration: InputDecoration(
                       hintText: 'End time',
                       prefixIcon: const Icon(Icons.schedule),
@@ -850,6 +906,8 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                         horizontal: 12,
                         vertical: 10,
                       ),
+                      filled: true,
+                      fillColor: Colors.white,
                     ),
                   ),
                 ),
@@ -873,7 +931,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
               items: ['available', 'limited', 'unavailable']
                   .map((status) => DropdownMenuItem(
                         value: status,
-                        child: Text(status.capitalize(), style: const TextStyle(fontSize: 12)),
+                        child: Text(status.capitalize(), style: const TextStyle(fontSize: 12, color: Colors.black)),
                       ))
                   .toList(),
               decoration: InputDecoration(
@@ -884,6 +942,8 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                   horizontal: 12,
                   vertical: 8,
                 ),
+                filled: true,
+                fillColor: Colors.white,
               ),
             ),
             const SizedBox(height: 16),
@@ -925,6 +985,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
                 ),
               ],
             ),
+            const SizedBox(height: 60),
           ],
         ),
       ),
