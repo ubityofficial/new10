@@ -50,12 +50,119 @@ let vendorServices = [
 // GET all services
 app.get('/api/services', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('services')
-      .select('*');
+    const { district, search, limit = 50, offset = 0 } = req.query;
+
+    let query = supabase
+      .from('vendor_services')
+      .select(`
+        id,
+        vendor_id,
+        service_id,
+        pricing,
+        duration,
+        location,
+        availability,
+        created_at,
+        services (
+          id,
+          name,
+          description,
+          category,
+          image1,
+          image2,
+          rating,
+          reviews
+        ),
+        vendors (
+          id,
+          user_id,
+          business_name,
+          status,
+          approved
+        )
+      `)
+      .eq('availability', true)
+      .order('created_at', { ascending: false });
+
+    // Filter by district if provided
+    if (district && district !== 'All Districts') {
+      query = query.eq('location', district);
+    }
+
+    // Filter by search if provided
+    if (search && search.trim()) {
+      const searchLower = search.toString().toLowerCase();
+      // This is a client-side filter since Supabase doesn't support complex OR queries easily
+      // We'll fetch all and filter, or use a stored procedure
+      const { data, error } = await query.limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit));
+      
+      if (error) {
+        return res.status(400).json({ error: error.message });
+      }
+
+      // Client-side filtering for search
+      const filtered = (data || []).filter(vs => {
+        const serviceName = vs.services?.name?.toLowerCase() || '';
+        const businessName = vs.vendors?.business_name?.toLowerCase() || '';
+        const description = vs.services?.description?.toLowerCase() || '';
+        
+        return (
+          serviceName.includes(searchLower) ||
+          businessName.includes(searchLower) ||
+          description.includes(searchLower)
+        );
+      });
+
+      const formatted = filtered.map(vs => ({
+        id: vs.id,
+        name: vs.services?.name,
+        description: vs.services?.description,
+        category: vs.services?.category,
+        image1: vs.services?.image1,
+        image2: vs.services?.image2,
+        rating: vs.services?.rating || 0,
+        reviews: vs.services?.reviews || 0,
+        vendorId: vs.vendor_id,
+        vendorName: vs.vendors?.business_name,
+        location: vs.location,
+        pricePerDay: vs.pricing,
+        pricePerHour: null, // Will add hourly pricing support later
+        isOnline: vs.vendors?.status === 'active',
+        emoji: '🏗️', // Default emoji - will store per service later
+        serviceType: vs.services?.category,
+      }));
+
+      return res.json(formatted);
+    }
+
+    // No search filter, just location
+    const { data, error } = await query.limit(parseInt(limit)).range(parseInt(offset), parseInt(offset) + parseInt(limit));
     
-    if (error) return res.status(400).json({ error: error.message });
-    res.json(data || []);
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    // Format response
+    const formatted = (data || []).map(vs => ({
+      id: vs.id,
+      name: vs.services?.name,
+      description: vs.services?.description,
+      category: vs.services?.category,
+      image1: vs.services?.image1,
+      image2: vs.services?.image2,
+      rating: vs.services?.rating || 0,
+      reviews: vs.services?.reviews || 0,
+      vendorId: vs.vendor_id,
+      vendorName: vs.vendors?.business_name,
+      location: vs.location,
+      pricePerDay: vs.pricing,
+      pricePerHour: null, // Will add hourly pricing support later
+      isOnline: vs.vendors?.status === 'active',
+      emoji: '🏗️', // Default emoji - will store per service later
+      serviceType: vs.services?.category,
+    }));
+
+    res.json(formatted);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -65,13 +172,60 @@ app.get('/api/services', async (req, res) => {
 app.get('/api/services/:id', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('services')
-      .select('*')
+      .from('vendor_services')
+      .select(`
+        id,
+        vendor_id,
+        service_id,
+        pricing,
+        duration,
+        location,
+        availability,
+        created_at,
+        services (
+          id,
+          name,
+          description,
+          category,
+          image1,
+          image2,
+          rating,
+          reviews
+        ),
+        vendors (
+          id,
+          user_id,
+          business_name,
+          status,
+          approved
+        )
+      `)
       .eq('id', req.params.id)
       .single();
     
     if (error) return res.status(404).json({ error: 'Service not found' });
-    res.json(data);
+    
+    // Format response
+    const formatted = {
+      id: data.id,
+      name: data.services?.name,
+      description: data.services?.description,
+      category: data.services?.category,
+      image1: data.services?.image1,
+      image2: data.services?.image2,
+      rating: data.services?.rating || 0,
+      reviews: data.services?.reviews || 0,
+      vendorId: data.vendor_id,
+      vendorName: data.vendors?.business_name,
+      location: data.location,
+      pricePerDay: data.pricing,
+      pricePerHour: null,
+      isOnline: data.vendors?.status === 'active',
+      emoji: '🏗️',
+      serviceType: data.services?.category,
+    };
+    
+    res.json(formatted);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1283,6 +1437,50 @@ app.post('/api/admin/sponsorships/:sponsorshipId/reject', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// GET Karnataka districts for location dropdown
+app.get('/api/districts', (req, res) => {
+  const districts = [
+    'Bangalore Urban',
+    'Bangalore Rural',
+    'Belagavi',
+    'Ballari',
+    'Belgaum',
+    'Bidar',
+    'Bijapurnagar',
+    'Chamarajanagar',
+    'Chikballapur',
+    'Chikmagalur',
+    'Chitradurga',
+    'Dakshina Kannada',
+    'Davanagere',
+    'Dharwad',
+    'Gadag',
+    'Gulbarga',
+    'Hassan',
+    'Haveri',
+    'Kalaburagi',
+    'Kodagu',
+    'Kolar',
+    'Koppal',
+    'Mandya',
+    'Mangalore',
+    'Mysore',
+    'Mysuru',
+    'Raichur',
+    'Shivamogga',
+    'Tumkur',
+    'Udupi',
+    'Uttara Kannada',
+    'Yadgir',
+  ];
+
+  res.json({
+    success: true,
+    districts: ['All Districts', ...districts],
+    total: districts.length,
+  });
 });
 
 // Health check
