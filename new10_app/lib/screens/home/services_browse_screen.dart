@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_theme.dart';
 import '../../services/service_api_client.dart';
+import '../../services/cache_service.dart';
 import '../../models/service_model.dart';
+import '../../widgets/skeleton_loaders.dart';
+import '../../widgets/cached_image.dart';
 
 class ServicesBrowseScreen extends StatefulWidget {
   const ServicesBrowseScreen({super.key});
@@ -22,32 +25,60 @@ class _ServicesBrowseScreenState extends State<ServicesBrowseScreen> {
   @override
   void initState() {
     super.initState();
-    _loadServices();
+    _loadServicesWithCache();
   }
 
-  Future<void> _loadServices() async {
+  Future<void> _loadServicesWithCache() async {
+    // Load cached data first
+    final cachedServices = await CacheService.getCachedServices();
+    if (cachedServices != null && cachedServices.isNotEmpty) {
+      final services = cachedServices
+          .map((s) => Service.fromJson(s as Map<String, dynamic>))
+          .toList();
+      if (mounted) {
+        setState(() {
+          _allServices = services;
+          _filteredServices = services
+              .map((service) => service.toMap())
+              .toList();
+          print('✅ Loaded cached services: ${_allServices.length}');
+        });
+      }
+    }
+
+    // Fetch fresh data in background
     try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+      if (_allServices.isEmpty) {
+        setState(() => _isLoading = true);
+      }
 
       final services = await ServiceApiClient.getServices();
-      
+      if (!mounted) return;
+
       setState(() {
         _allServices = services;
         _filteredServices = services
             .map((service) => service.toMap())
             .toList();
         _isLoading = false;
+        _error = null;
       });
 
+      // Cache fresh data
+      await CacheService.setCachedServices(
+        services.map((s) => s.toJson()).toList() as List<dynamic>,
+      );
+      print('✅ Loaded and cached fresh services: ${services.length}');
+      
       _filterServices();
     } catch (e) {
-      setState(() {
-        _error = 'Failed to load services: $e';
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load services: $e';
+          _isLoading = false;
+        });
+      }
+      print('❌ Error loading services: $e');
     }
   }
 
@@ -229,20 +260,8 @@ class _ServicesBrowseScreenState extends State<ServicesBrowseScreen> {
             ),
             // Services List
             Expanded(
-              child: _isLoading
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const CircularProgressIndicator(),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Loading services...',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
-                    )
+              child: _isLoading && _filteredServices.isEmpty
+                  ? const SkeletonServiceGrid(itemCount: 6)
                   : _error != null
                       ? Center(
                           child: Column(
