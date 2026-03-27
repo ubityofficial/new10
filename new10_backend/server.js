@@ -1465,6 +1465,30 @@ app.get('/api/districts', (req, res) => {
   });
 });
 
+// CLEAN TEST DATA (for development)
+app.delete('/api/seed-test-data', async (req, res) => {
+  try {
+    console.log('🗑️  Cleaning test data...');
+
+    // Delete all vendor_services
+    await supabase.from('vendor_services').delete().like('location', '%');
+
+    // Delete all services created for testing
+    await supabase.from('services').delete().like('category', 'Heavy Equipment');
+
+    // Delete test vendors
+    await supabase.from('vendors').delete().like('business_name', '%Machineries%');
+
+    // Delete test user
+    await supabase.from('users').delete().like('email', '%test%');
+
+    res.json({ success: true, message: 'Test data cleaned' });
+  } catch (err) {
+    console.error('Clean error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // SEED TEST DATA (for development)
 app.post('/api/seed-test-data', async (req, res) => {
   try {
