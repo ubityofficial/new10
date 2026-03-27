@@ -396,7 +396,7 @@ app.get('/api/settings', async (req, res) => {
     }
 
     res.json({
-      bannerImageUrl: data[0].bannerUrl,
+      bannerImageUrl: data[0].banner_url,
       updated_at: data[0].updated_at,
     });
   } catch (err) {
@@ -433,7 +433,7 @@ app.post('/api/settings', async (req, res) => {
       result = await supabase
         .from('promotions')
         .update({
-          bannerUrl: bannerImageUrl,
+          banner_url: bannerImageUrl,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existing[0].id)
@@ -445,7 +445,7 @@ app.post('/api/settings', async (req, res) => {
         .insert([
           {
             promoType: 'banner',
-            bannerUrl: bannerImageUrl,
+            banner_url: bannerImageUrl,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           },
@@ -461,7 +461,7 @@ app.post('/api/settings', async (req, res) => {
     res.json({
       message: 'Settings updated successfully',
       settings: {
-        bannerImageUrl: result.data.bannerUrl,
+        bannerImageUrl: result.data.banner_url,
         updated_at: result.data.updated_at,
       },
     });
@@ -638,7 +638,7 @@ app.get('/api/promotions', async (req, res) => {
 
     // Provide fallback values if queries fail
     const banner = bannerData && bannerData.length > 0 
-      ? { url: bannerData[0].bannerUrl, updated_at: bannerData[0].updated_at }
+      ? { url: bannerData[0].banner_url, updated_at: bannerData[0].updated_at }
       : { url: 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80', updated_at: new Date() };
 
     const offer = offerData && offerData.length > 0
@@ -681,8 +681,8 @@ app.post('/api/promotions/banner', async (req, res) => {
       result = await supabase
         .from('promotions')
         .update({
-          bannerUrl: url.trim(),
-          updatedAt: new Date().toISOString(),
+          banner_url: url.trim(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', existing[0].id)
         .select()
@@ -694,9 +694,9 @@ app.post('/api/promotions/banner', async (req, res) => {
         .insert([
           {
             promoType: 'banner',
-            bannerUrl: url.trim(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            banner_url: url.trim(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
         ])
         .select()
@@ -711,8 +711,8 @@ app.post('/api/promotions/banner', async (req, res) => {
     res.json({
       message: 'Banner updated successfully',
       banner: {
-        url: result.data.bannerUrl,
-        updatedAt: result.data.updatedAt,
+        url: result.data.banner_url,
+        updated_at: result.data.updated_at,
       },
     });
   } catch (err) {
