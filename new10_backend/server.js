@@ -2,7 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
-const { authRoutes } = require('./auth');
+const authRoutes = require('./auth');
+const { initializeDatabase } = require('./initializeDatabase');
 require('dotenv').config();
 
 const app = express();
@@ -20,6 +21,10 @@ app.use(express.urlencoded({ limit: '50mb' }));
 // Multer config (for temporary file handling)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+// ============ INITIALIZE DATABASE ============
+console.log('🚀 Initializing database tables...');
+initializeDatabase().catch(err => console.error('⚠️ Database init warning:', err.message));
 
 // ============ INITIALIZE AUTH ROUTES ============
 authRoutes(app, supabase);

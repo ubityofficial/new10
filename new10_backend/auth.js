@@ -1,7 +1,8 @@
-// Real Authentication System with JWT, Database, and Google OAuth
+// Real Authentication System with JWT, Supabase Database, and Email
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
@@ -16,16 +17,11 @@ const emailService = nodemailer.createTransport({
   },
 });
 
-// In-memory storage for demo (replace with database in production)
-const users = new Map();
-const vendors = new Map();
-const passwordResetTokens = new Map();
-
 // ============ AUTH HELPERS ============
 
-const generateToken = (userId, role) => {
+const generateToken = (userId, role, email) => {
   return jwt.sign(
-    { userId, role, timestamp: Date.now() },
+    { userId, role, email, timestamp: Date.now() },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES_IN }
   );
@@ -49,8 +45,7 @@ const comparePassword = async (password, hash) => {
 };
 
 const generateResetToken = () => {
-  return Math.random().toString(36).substring(2, 15) +
-         Math.random().toString(36).substring(2, 15);
+  return crypto.randomBytes(32).toString('hex');
 };
 
 // ============ AUTH ENDPOINTS ============
@@ -64,15 +59,29 @@ const authRoutes = (app, supabase) => {
 
       // Validation
       if (!email || !password || !name || !role) {
-        return res.status(400).json({ error: 'Missing required fields' });
+        return res.status(400).json({ error: 'Missing required fields: email, password, name, role' });
       }
 
       if (password.length < 6) {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
       }
 
-      // Check if user exists
-      const existingUser = Array.from(users.values()).find(u => u.email === email);
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      if (!['user', 'vendor'].includes(role)) {
+        return res.status(400).json({ error: 'Role must be "user" or "vendor"' });
+      }
+
+      // Check if user already exists in Supabase
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email.toLowerCase())
+        .single();
+
       if (existingUser) {
         return res.status(400).json({ error: 'Email already registered' });
       }
@@ -80,59 +89,76 @@ const authRoutes = (app, supabase) => {
       // Hash password
       const hashedPassword = await hashPassword(password);
 
-      // Create user
-      const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      const newUser = {
-        id: userId,
-        email,
-        password: hashedPassword,
-        name,
-        phone,
-        role, // 'user' or 'vendor'
-        status: 'active',
-        profileImage: null,
-        createdAt: new Date(),
-      };
+      // Create user in Supabase
+      const userId = 'usr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id: userId,
+            email: email.toLowerCase(),
+            password: hashedPassword,
+            name,
+            phone: phone || null,
+            role,
+            status: 'active',
+            profile_image: null,
+          }
+        ])
+        .select()
+        .single();
 
-      users.set(userId, newUser);
+      if (insertError) {
+        console.error('❌ Error registering user:', insertError);
+        return res.status(500).json({ error: 'Failed to register user: ' + insertError.message });
+      }
 
       // If vendor role, also create vendor record
       if (role === 'vendor') {
-        const vendorId = 'vendor_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        const newVendor = {
-          id: vendorId,
-          userId,
-          businessName: '',
-          businessReg: '',
-          status: 'active',
-          approved: true, // Auto-approve vendors
-          blocked: false,
-          createdAt: new Date(),
-        };
-        vendors.set(vendorId, newVendor);
+        const vendorId = 'vnd_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const { error: vendorError } = await supabase
+          .from('vendors')
+          .insert([
+            {
+              id: vendorId,
+              user_id: userId,
+              business_name: name,
+              business_registration: null,
+              status: 'active',
+              approved: false,
+              blocked: false,
+            }
+          ]);
+
+        if (vendorError) {
+          console.error('⚠️ Warning: Failed to create vendor record:', vendorError);
+        }
       }
 
       // Generate token
-      const token = generateToken(userId, role);
+      const token = generateToken(userId, role, email);
 
-      res.json({
+      console.log(`✅ User registered: ${email} (${role})`);
+
+      return res.json({
         success: true,
-        message: 'Registration successful',
-        token,
+        message: 'User registered successfully',
         user: {
           id: userId,
-          email,
-          name,
-          phone,
-          role,
+          email: newUser.email,
+          name: newUser.name,
+          role: newUser.role,
         },
+        token,
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+
+    } catch (error) {
+      console.error('❌ Register error:', error);
+      res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
   });
 
-  // LOGIN
+  // LOGIN USER
   app.post('/api/auth/login', async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -141,40 +167,50 @@ const authRoutes = (app, supabase) => {
         return res.status(400).json({ error: 'Email and password required' });
       }
 
-      // Find user by email
-      const user = Array.from(users.values()).find(u => u.email === email);
-      if (!user) {
-        return res.status(401).json({ error: 'Invalid email or password' });
-      }
+      // Fetch user from Supabase
+      const { data: user, error: fetchError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
 
-      // Verify password
-      const isPasswordValid = await comparePassword(password, user.password);
-      if (!isPasswordValid) {
+      if (!user) {
         return res.status(401).json({ error: 'Invalid email or password' });
       }
 
       // Check if user is blocked
       if (user.status === 'blocked') {
-        return res.status(403).json({ error: 'Your account has been blocked' });
+        return res.status(403).json({ error: 'This account has been blocked' });
+      }
+
+      // Compare password
+      const isPasswordValid = await comparePassword(password, user.password);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Invalid email or password' });
       }
 
       // Generate token
-      const token = generateToken(user.id, user.role);
+      const token = generateToken(user.id, user.role, user.email);
 
-      res.json({
+      console.log(`✅ User logged in: ${email}`);
+
+      return res.json({
         success: true,
         message: 'Login successful',
-        token,
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
           phone: user.phone,
+          role: user.role,
+          profile_image: user.profile_image,
         },
+        token,
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
   });
 
@@ -184,48 +220,79 @@ const authRoutes = (app, supabase) => {
       const { email } = req.body;
 
       if (!email) {
-        return res.status(400).json({ error: 'Email required' });
+        return res.status(400).json({ error: 'Email is required' });
       }
 
-      const user = Array.from(users.values()).find(u => u.email === email);
+      // Find user in Supabase
+      const { data: user } = await supabase
+        .from('users')
+        .select('id, email, name')
+        .eq('email', email.toLowerCase())
+        .single();
+
       if (!user) {
-        // Don't reveal if email exists (security best practice)
-        return res.json({ 
-          success: true, 
-          message: 'If this email exists, a reset link has been sent' 
+        // Don't reveal if email exists (security), return success anyway
+        return res.json({
+          success: true,
+          message: 'If email exists, a reset link has been sent',
         });
       }
 
       // Generate reset token
       const resetToken = generateResetToken();
-      const expiresAt = Date.now() + (30 * 60 * 1000); // 30 minutes
-      
-      passwordResetTokens.set(resetToken, {
-        email,
-        expiresAt,
-      });
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
 
-      // Send email (mock - in production, use real email)
+      // Store reset token in Supabase
+      const { error: tokenError } = await supabase
+        .from('password_resets')
+        .insert([
+          {
+            id: 'prt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            user_id: user.id,
+            reset_token: resetToken,
+            expires_at: expiresAt,
+            used: false,
+          }
+        ]);
+
+      if (tokenError) {
+        console.error('❌ Error storing reset token:', tokenError);
+        return res.status(500).json({ error: 'Failed to generate reset token' });
+      }
+
+      // Send email with reset link
       const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-      
-      console.log(`✅ Password reset link: ${resetLink}`);
-      
-      // In production:
-      // await emailService.sendMail({
-      //   to: email,
-      //   subject: 'Password Reset - RAPIDO',
-      //   html: `Click here to reset your password: <a href="${resetLink}">${resetLink}</a>`,
-      // });
 
-      res.json({
+      try {
+        await emailService.sendMail({
+          from: process.env.EMAIL_USER,
+          to: email,
+          subject: 'Reset Your Password - New10 Equipment Rental',
+          html: `
+            <h2>Password Reset Request</h2>
+            <p>Hi ${user.name},</p>
+            <p>We received a request to reset your password. Click the link below to create a new password:</p>
+            <p><a href="${resetLink}" style="padding: 10px 20px; background: #2196F3; color: white; text-decoration: none; border-radius: 4px;">Reset Password</a></p>
+            <p>This link will expire in 24 hours.</p>
+            <p>If you didn't request this, you can ignore this email.</p>
+            <hr>
+            <p><small>New10 Equipment Rental - www.new10.com</small></p>
+          `,
+        });
+        console.log(`✅ Reset email sent to: ${email}`);
+      } catch (emailError) {
+        console.error('⚠️ Email send failed:', emailError.message);
+        // Still return success so user knows to check email
+      }
+
+      return res.json({
         success: true,
-        message: 'If this email exists, a reset link has been sent',
-        // Remove in production
-        resetToken: resetToken,
-        resetLink: resetLink,
+        message: 'If email exists, a reset link has been sent',
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+
+    } catch (error) {
+      console.error('❌ Forgot password error:', error);
+      res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
   });
 
@@ -242,279 +309,104 @@ const authRoutes = (app, supabase) => {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
       }
 
-      const resetData = passwordResetTokens.get(token);
-      if (!resetData) {
-        return res.status(401).json({ error: 'Invalid or expired token' });
+      // Find valid reset token in Supabase
+      const { data: resetRecord } = await supabase
+        .from('password_resets')
+        .select('*')
+        .eq('reset_token', token)
+        .eq('used', false)
+        .single();
+
+      if (!resetRecord) {
+        return res.status(400).json({ error: 'Invalid or expired reset token' });
       }
 
-      if (Date.now() > resetData.expiresAt) {
-        passwordResetTokens.delete(token);
-        return res.status(401).json({ error: 'Reset token has expired' });
+      // Check if token is expired
+      if (new Date(resetRecord.expires_at) < new Date()) {
+        return res.status(400).json({ error: 'Reset token has expired' });
       }
 
-      // Find user and update password
-      const user = Array.from(users.values()).find(u => u.email === resetData.email);
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
+      // Hash new password
       const hashedPassword = await hashPassword(newPassword);
-      user.password = hashedPassword;
 
-      passwordResetTokens.delete(token);
+      // Update user password in Supabase
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ password: hashedPassword, updated_at: new Date().toISOString() })
+        .eq('id', resetRecord.user_id);
 
-      res.json({
+      if (updateError) {
+        console.error('❌ Error updating password:', updateError);
+        return res.status(500).json({ error: 'Failed to reset password' });
+      }
+
+      // Mark token as used
+      await supabase
+        .from('password_resets')
+        .update({ used: true })
+        .eq('id', resetRecord.id);
+
+      console.log(`✅ Password reset for user: ${resetRecord.user_id}`);
+
+      return res.json({
         success: true,
-        message: 'Password reset successful',
+        message: 'Password reset successfully',
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+
+    } catch (error) {
+      console.error('❌ Reset password error:', error);
+      res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
   });
 
-  // GET CURRENT USER (verify token)
-  app.get('/api/auth/me', (req, res) => {
+  // VERIFY TOKEN / GET CURRENT USER
+  app.get('/api/auth/me', async (req, res) => {
     try {
-      const token = req.headers.authorization?.split(' ')[1];
-      
-      if (!token) {
+      const authHeader = req.headers.authorization;
+
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'No token provided' });
       }
 
+      const token = authHeader.substring(7);
       const decoded = verifyToken(token);
+
       if (!decoded) {
         return res.status(401).json({ error: 'Invalid or expired token' });
       }
 
-      const user = users.get(decoded.userId);
+      // Fetch user from Supabase
+      const { data: user, error: fetchError } = await supabase
+        .from('users')
+        .select('id, email, name, phone, role, profile_image, status, created_at')
+        .eq('id', decoded.userId)
+        .single();
+
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return res.status(401).json({ error: 'User not found' });
       }
 
-      res.json({
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        phone: user.phone,
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // VENDOR APPROVAL - AUTO on registration, but admin can block
-  app.get('/api/vendors', (req, res) => {
-    try {
-      const allVendors = Array.from(vendors.values()).map(v => {
-        const user = users.get(v.userId);
-        return {
-          ...v,
-          userName: user?.name,
-          userEmail: user?.email,
-          userPhone: user?.phone,
-        };
-      });
-      res.json(allVendors);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ADMIN: BLOCK VENDOR
-  app.post('/api/admin/vendors/:vendorId/block', (req, res) => {
-    try {
-      const { vendorId } = req.params;
-      const vendor = vendors.get(vendorId);
-      
-      if (!vendor) {
-        return res.status(404).json({ error: 'Vendor not found' });
-      }
-
-      vendor.blocked = true;
-      const user = users.get(vendor.userId);
-      if (user) {
-        user.status = 'blocked';
-      }
-
-      res.json({
+      return res.json({
         success: true,
-        message: 'Vendor blocked successfully',
-        vendor,
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ADMIN: UNBLOCK VENDOR
-  app.post('/api/admin/vendors/:vendorId/unblock', (req, res) => {
-    try {
-      const { vendorId } = req.params;
-      const vendor = vendors.get(vendorId);
-      
-      if (!vendor) {
-        return res.status(404).json({ error: 'Vendor not found' });
-      }
-
-      vendor.blocked = false;
-      const user = users.get(vendor.userId);
-      if (user) {
-        user.status = 'active';
-      }
-
-      res.json({
-        success: true,
-        message: 'Vendor unblocked successfully',
-        vendor,
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // GET ALL USERS (Admin)
-  app.get('/api/admin/users', (req, res) => {
-    try {
-      const allUsers = Array.from(users.values()).map(u => ({
-        id: u.id,
-        email: u.email,
-        name: u.name,
-        phone: u.phone,
-        role: u.role,
-        status: u.status,
-        createdAt: u.createdAt,
-      }));
-      res.json(allUsers);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ADMIN: BLOCK USER
-  app.post('/api/admin/users/:userId/block', (req, res) => {
-    try {
-      const { userId } = req.params;
-      const user = users.get(userId);
-      
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      user.status = 'blocked';
-
-      res.json({
-        success: true,
-        message: 'User blocked successfully',
         user: {
           id: user.id,
           email: user.email,
           name: user.name,
+          phone: user.phone,
+          role: user.role,
+          profile_image: user.profile_image,
           status: user.status,
+          createdAt: user.created_at,
         },
       });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
+
+    } catch (error) {
+      console.error('❌ Auth verification error:', error);
+      res.status(500).json({ error: 'Internal server error: ' + error.message });
     }
   });
 
-  // ADMIN: UNBLOCK USER
-  app.post('/api/admin/users/:userId/unblock', (req, res) => {
-    try {
-      const { userId } = req.params;
-      const user = users.get(userId);
-      
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-
-      user.status = 'active';
-
-      res.json({
-        success: true,
-        message: 'User unblocked successfully',
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          status: user.status,
-        },
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ADMIN: DELETE USER
-  app.delete('/api/admin/users/:userId', (req, res) => {
-    try {
-      const { userId } = req.params;
-      users.delete(userId);
-
-      res.json({
-        success: true,
-        message: 'User deleted successfully',
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ============ ADMIN: GET ALL USERS ============
-  app.get('/api/admin/users', (req, res) => {
-    try {
-      const allUsers = Array.from(users.values()).map(user => ({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone || 'N/A',
-        status: user.status,
-        role: user.role,
-        createdAt: user.createdAt?.toISOString?.() || new Date().toISOString(),
-      }));
-      
-      res.json({
-        success: true,
-        count: allUsers.length,
-        users: allUsers,
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
-
-  // ============ ADMIN: GET ALL VENDORS (ENHANCED) ============
-  app.get('/api/admin/vendors/list', (req, res) => {
-    try {
-      const allVendors = Array.from(vendors.values()).map(vendor => {
-        const user = users.get(vendor.userId);
-        return {
-          id: vendor.id,
-          businessName: vendor.businessName || user?.name || 'N/A',
-          ownerName: user?.name || 'N/A',
-          ownerEmail: user?.email || 'N/A',
-          ownerPhone: user?.phone || 'N/A',
-          status: vendor.approved ? (vendor.blocked ? 'blocked' : 'approved') : 'pending',
-          businessReg: vendor.businessReg || 'N/A',
-          approved: vendor.approved,
-          blocked: vendor.blocked,
-          createdAt: vendor.createdAt?.toISOString?.() || new Date().toISOString(),
-        };
-      });
-      
-      res.json({
-        success: true,
-        count: allVendors.length,
-        vendors: allVendors,
-      });
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  });
+  console.log('✅ Auth routes configured (using Supabase for persistent storage)');
 };
 
-module.exports = {
-  authRoutes,
-  verifyToken,
-  generateToken,
-};
+module.exports = authRoutes;
