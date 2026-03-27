@@ -1531,11 +1531,14 @@ app.post('/api/seed-test-data', async (req, res) => {
             image2: 'https://via.placeholder.com/400?text=' + name + '2',
             rating: 4.5,
             reviews: Math.floor(Math.random() * 100) + 10,
-            created_at: new Date(),
           },
         ])
         .select()
         .single();
+
+      if (serviceError) {
+        console.error('Error creating service:', name, serviceError);
+      }
 
       if (service) {
         services.push(service);
