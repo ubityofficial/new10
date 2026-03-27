@@ -48,6 +48,33 @@ let vendorServices = [
 // ============ SERVICES CRUD (Supabase) ============
 
 // GET all services
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date(), version: 'e927007-services-fix' });
+});
+
+// Test endpoint to verify new code is deployed
+app.get('/api/services-test', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('id, name')
+      .limit(3);
+    
+    if (error) {
+      return res.json({ success: false, error: error.message });
+    }
+    
+    res.json({ 
+      success: true, 
+      count: data?.length || 0,
+      services: data || []
+    });
+  } catch (err) {
+    res.json({ success: false, error: (err as any).message });
+  }
+});
+
 app.get('/api/services', async (req, res) => {
   try {
     const { search } = req.query;
