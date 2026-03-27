@@ -49,7 +49,7 @@ class _VendorServicesManagementScreenNewState
     setState(() => _isLoadingAvailable = true);
     
     try {
-      final services = await ServiceApiClient().fetchAllServices();
+      final services = await ServiceApiClient.getServices();
       if (mounted) {
         setState(() {
           _availableServices = services;
