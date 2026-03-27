@@ -8,7 +8,7 @@ import 'screens/home/services_browse_screen.dart';
 import 'screens/listing/vendor_listing_page.dart';
 import 'screens/address/address_management_screen.dart';
 import 'screens/search/location_search_screen.dart';
-import 'screens/vendor/vendor_dashboard_screen.dart';
+import 'screens/vendor/vendor_dashboard_screen_new.dart';
 import 'screens/equipment/equipment_detail_screen.dart';
 import 'screens/booking/booking_screen.dart';
 import 'screens/profile/profile_screen.dart';
@@ -70,7 +70,7 @@ class MyApp extends StatelessWidget {
             // Route to respective dashboard based on user type
             return authProvider.isUser
                 ? const RapidoHomeScreen()
-                : const VendorDashboardScreen();
+                : const VendorDashboardScreenNew();
           },
         ),
         routes: {
@@ -80,7 +80,7 @@ class MyApp extends StatelessWidget {
           '/addresses': (context) => const AddressManagementScreen(),
           '/search-location': (context) => const LocationSearchScreen(),
           '/services-browse': (context) => const ServicesBrowseScreen(),
-          '/vendor': (context) => const VendorDashboardScreen(),
+          '/vendor': (context) => const VendorDashboardScreenNew(),
           '/profile': (context) => const ProfileScreen(),
           '/my-bookings': (context) => const MyBookingsScreen(),
         },
