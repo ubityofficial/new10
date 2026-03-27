@@ -524,19 +524,24 @@ app.get('/api/offer', async (req, res) => {
       // Return default offer
       return res.json({
         code: 'RAPIDO15',
-        discountpercent: 15,
+        discountPercent: 15,
         description: 'Get 15% off on heavy equipment rental!',
         active: true,
       });
     }
 
     if (data && data.length > 0) {
-      res.json(data[0]);
+      res.json({
+        code: data[0].code,
+        discountPercent: data[0].discountpercent,
+        description: data[0].description,
+        active: data[0].active,
+      });
     } else {
       // Return default offer if none found
       res.json({
         code: 'RAPIDO15',
-        discountpercent: 15,
+        discountPercent: 15,
         description: 'Get 15% off on heavy equipment rental!',
         active: true,
       });
@@ -549,13 +554,13 @@ app.get('/api/offer', async (req, res) => {
 // UPDATE offer data in database
 app.post('/api/offer', async (req, res) => {
   try {
-    const { code, discountpercent, description } = req.body;
+    const { code, discountPercent, description } = req.body;
 
     if (!code || !code.trim()) {
       return res.status(400).json({ error: 'Coupon code is required' });
     }
 
-    const discount = parseInt(discountpercent);
+    const discount = parseInt(discountPercent);
     if (isNaN(discount) || discount < 0 || discount > 100) {
       return res.status(400).json({ error: 'Discount must be between 0 and 100' });
     }
@@ -578,7 +583,7 @@ app.post('/api/offer', async (req, res) => {
           discountpercent: discount,
           description: description || 'Special discount offer',
           active: true,
-          updated_at: new Date().toISOString(),
+          updatedat: new Date().toISOString(),
         })
         .eq('id', existing[0].id)
         .select()
