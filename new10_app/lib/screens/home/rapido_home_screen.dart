@@ -117,17 +117,26 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   }
 
   Future<void> _preloadServiceImages(List<Service> services) async {
-    final imageCacheService = ImageCacheService();
+    // Preload ALL service images in parallel for faster display
+    final futures = <Future>[]
     
-    // Preload first 5 service images
-    for (var i = 0; i < services.length && i < 5; i++) {
-      if (services[i].image1 != null && services[i].image1!.isNotEmpty) {
-        try {
-          imageCacheService.preloadImage(services[i].image1!);
-        } catch (e) {
-          // Silently fail
-        }
+    for (var service in services) {
+      if (service.image1 != null && service.image1!.isNotEmpty) {
+        futures.add(
+          precacheImage(
+            NetworkImage(service.image1!),
+            context,
+          ).catchError((e) => print('Image preload failed: $e')),
+        );
       }
+    }
+    
+    // Wait for all images to preload in parallel
+    try {
+      await Future.wait(futures, eagerError: false);
+      print('✅ All ${futures.length} service images preloaded successfully');
+    } catch (e) {
+      print('Preload error: $e');
     }
   }
 
@@ -466,7 +475,13 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
                         // Explore Button - Very Small
                         ElevatedButton(
                           onPressed: () {
-                            // Navigate to equipment
+                            // Navigate to All Services
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AllServicesPage(),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryColor,
