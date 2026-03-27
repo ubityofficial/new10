@@ -664,8 +664,14 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
         // Small cards (right) - 40%
         Expanded(
           flex: 4,
-          child: _isLoadingServices
-              ? const Center(child: CircularProgressIndicator())
+          child: _apiServices.isEmpty && _isLoadingServices
+              ? Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(
+                    3,
+                    (index) => const SkeletonListTile(),
+                  ),
+                )
               : _servicesError != null
                   ? Center(
                       child: Text(
@@ -1004,11 +1010,14 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   // Category Scroll
   Widget _buildCategoryScroll() {
     // Display services in 2 horizontal scrollable rows
-    if (_isLoadingServices) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(40),
-          child: CircularProgressIndicator(),
+    if (_apiServices.isEmpty) {
+      return SizedBox(
+        height: 120,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          itemCount: 4,
+          itemBuilder: (context, index) => const SkeletonServiceCard(),
         ),
       );
     }
