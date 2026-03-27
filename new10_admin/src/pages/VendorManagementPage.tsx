@@ -103,14 +103,14 @@ const VendorManagementPage: React.FC = () => {
           // Map API response to VendorData format
           const mappedVendors = data.vendors.map((vendor: any) => ({
             id: vendor.id,
-            businessName: vendor.businessName,
-            ownerName: vendor.ownerName,
+            businessName: vendor.business_name,
+            ownerName: vendor.users?.name || 'Unknown',
             status: vendor.status || 'pending',
-            businessReg: vendor.businessReg || vendor.gst || '',
+            businessReg: vendor.business_registration || vendor.gst || '',
             approved: vendor.approved || false,
             blocked: vendor.blocked || false,
-            createdAt: vendor.createdAt,
-            gst: vendor.gst || vendor.businessReg || '',
+            createdAt: vendor.created_at,
+            gst: vendor.gst || vendor.business_registration || '',
             equipmentCount: vendor.equipmentCount || 0,
             verified: vendor.verified || false,
           }))

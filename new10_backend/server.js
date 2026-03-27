@@ -790,12 +790,13 @@ app.post('/api/promotions/offer', async (req, res) => {
 
 // ============ ADMIN ENDPOINTS ============
 
-// GET all users (for admin panel)
+// GET all users (for admin panel) - excludes vendors
 app.get('/api/admin/users', async (req, res) => {
   try {
     const { data: users, error } = await supabase
       .from('users')
-      .select('id, email, name, phone, role, status, profile_image, created_at');
+      .select('id, email, name, phone, role, status, profile_image, created_at')
+      .eq('role', 'user');
 
     if (error) {
       return res.status(400).json({ error: error.message });
@@ -826,17 +827,20 @@ app.get('/api/admin/vendors/list', async (req, res) => {
         approved,
         blocked,
         created_at,
-        users (id, email, name, phone)
+        users (id, email, name, phone, role)
       `);
 
     if (vendorError) {
       return res.status(400).json({ error: vendorError.message });
     }
 
+    // Filter to ensure we only get vendors (users with role='vendor')
+    const filteredVendors = (vendors || []).filter(v => v.users && v.users.role === 'vendor');
+
     res.json({
       success: true,
-      vendors: vendors || [],
-      count: (vendors || []).length,
+      vendors: filteredVendors,
+      count: filteredVendors.length,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
