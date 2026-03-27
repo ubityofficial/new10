@@ -55,8 +55,9 @@ app.get('/api/services', async (req, res) => {
     // Fetch ALL services from services table
     const { data: allServices, error: sError } = await supabase
       .from('services')
-      .select('id, name, description, category, image1, image2, rating, reviews')
-      .order('created_at', { ascending: false });
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (sError) {
       console.error('Error fetching services:', sError);
@@ -67,126 +68,45 @@ app.get('/api/services', async (req, res) => {
       return res.json([]);
     }
 
-    // Fetch vendor_services for those that have vendor links
-    const serviceIds = allServices.map(s => s.id);
-    const { data: vendorServices, error: vsError } = await supabase
-      .from('vendor_services')
-      .select('service_id, vendor_id, pricing, duration, location, availability')
-      .in('service_id', serviceIds)
-      .eq('availability', true);
-
-    if (vsError) {
-      console.error('Error fetching vendor_services (non-fatal):', vsError);
-      // This is non-fatal - continue with just services
-    }
-
-    // Create a map of service_id -> vendor_services entries
-    const vnMap = {};
-    (vendorServices || []).forEach(vs => {
-      if (!vnMap[vs.service_id]) vnMap[vs.service_id] = [];
-      vnMap[vs.service_id].push(vs);
-    });
-
-    // Get unique vendor IDs to fetch vendor details
-    const vendorIds = new Set();
-    (vendorServices || []).forEach(vs => {
-      vendorIds.add(vs.vendor_id);
-    });
-
-    let vendors = {};
-    if (vendorIds.size > 0) {
-      const { data: vendorRecords, error: vError } = await supabase
-        .from('vendors')
-        .select('id, business_name, status')
-        .in('id', Array.from(vendorIds));
-
-      if (!vError && vendorRecords) {
-        vendorRecords.forEach(v => {
-          vendors[v.id] = v;
-        });
-      }
-    }
-
-    // Format services - prioritize vendor_services entries
-    let formatted = [];
-    
-    // First, add all services that have vendor_services entries
-    (vendorServices || []).forEach(vs => {
-      const service = allServices.find(s => s.id === vs.service_id);
-      if (service) {
-        const vendor = vendors[vs.vendor_id] || {};
-        formatted.push({
-          id: vs.service_id,
-          name: service.name,
-          description: service.description,
-          category: service.category,
-          image1: service.image1,
-          image2: service.image2,
-          rating: service.rating || 0,
-          reviews: service.reviews || 0,
-          vendorId: vs.vendor_id,
-          vendorName: vendor.business_name || 'Unknown Vendor',
-          location: vs.location,
-          pricePerDay: vs.pricing,
-          pricePerHour: null,
-          isOnline: vendor.status === 'active',
-          emoji: '🏗️',
-          serviceType: service.category,
-        });
-      }
-    });
-
-    // Then, add services without vendor links (admin-created services)
-    const serviceIdsInVendorServices = new Set((vendorServices || []).map(vs => vs.service_id));
-    allServices.forEach(service => {
-      if (!serviceIdsInVendorServices.has(service.id)) {
-        formatted.push({
-          id: service.id,
-          name: service.name,
-          description: service.description,
-          category: service.category,
-          image1: service.image1,
-          image2: service.image2,
-          rating: service.rating || 0,
-          reviews: service.reviews || 0,
-          vendorId: null,
-          vendorName: 'System Service',
-          location: district || 'All Districts',
-          pricePerDay: null,
-          pricePerHour: null,
-          isOnline: true,
-          emoji: '🏗️',
-          serviceType: service.category,
-        });
-      }
-    });
-
-    // Apply district filter if provided
-    if (district && district !== 'All Districts') {
-      formatted = formatted.filter(s => 
-        !s.location || s.location.toLowerCase().includes(district.toLowerCase()) || s.location === 'All Districts'
-      );
-    }
+    // Format services - simple version for now
+    let formatted = allServices.map(service => ({
+      id: service.id || '',
+      name: service.name || '',
+      description: service.description || '',
+      category: service.category || '',
+      image1: service.image1 || '',
+      image2: service.image2 || '',
+      rating: service.rating || 0,
+      reviews: service.reviews || 0,
+      vendorId: null,
+      vendorName: 'System Service',
+      location: 'All Districts',
+      pricePerDay: null,
+      pricePerHour: null,
+      isOnline: true,
+      emoji: '🏗️',
+      serviceType: service.category || '',
+    }));
 
     // Apply search filter if provided
     if (search && search.trim()) {
       const searchLower = search.toLowerCase();
       formatted = formatted.filter(s =>
         (s.name && s.name.toLowerCase().includes(searchLower)) ||
-        (s.vendorName && s.vendorName.toLowerCase().includes(searchLower)) ||
         (s.description && s.description.toLowerCase().includes(searchLower))
       );
     }
 
     // Apply pagination
-    const start = parseInt(offset);
-    const end = start + parseInt(limit);
+    const start = parseInt(offset as string) || 0;
+    const pageLimit = parseInt(limit as string) || 50;
+    const end = start + pageLimit;
     formatted = formatted.slice(start, end);
 
     res.json(formatted);
   } catch (err) {
     console.error('Error in /api/services:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: (err as any).message });
   }
 });
 
