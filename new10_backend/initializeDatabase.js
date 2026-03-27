@@ -3,14 +3,24 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
+// Create Supabase client if credentials available
+let supabase = null;
+
 if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Missing SUPABASE_URL or SUPABASE_KEY in environment variables');
-  process.exit(1);
+  console.warn('⚠️ SUPABASE_URL or SUPABASE_KEY not set - database initialization skipped');
+  console.warn('⚠️ Please set these environment variables in your deployment settings');
+} else {
+  supabase = createClient(supabaseUrl, supabaseKey);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 async function initializeDatabase() {
+  // Skip if Supabase not configured
+  if (!supabase) {
+    console.warn('⏭️ Database initialization skipped - Supabase not configured');
+    console.warn('To enable database persistence, set SUPABASE_URL and SUPABASE_KEY environment variables');
+    return;
+  }
+
   try {
     console.log('🔧 Initializing database tables...');
 
