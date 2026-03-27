@@ -1478,7 +1478,6 @@ app.post('/api/seed-test-data', async (req, res) => {
           id: uuidv4(),
           user_id: uuidv4(),
           business_name: 'SLV Machineries',
-          description: 'Heavy equipment rental services',
           status: 'active',
           approved: true,
           created_at: new Date(),
