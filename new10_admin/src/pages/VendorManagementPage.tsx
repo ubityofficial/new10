@@ -33,6 +33,9 @@ interface VendorData {
   approved: boolean
   blocked: boolean
   createdAt: string
+  gst: string
+  equipmentCount: number
+  verified: boolean
 }
 
 const mockVendors: VendorData[] = [
@@ -45,6 +48,9 @@ const mockVendors: VendorData[] = [
     approved: true,
     blocked: false,
     createdAt: '2023-01-10',
+    gst: '18AAGCT1234A1Z5',
+    equipmentCount: 45,
+    verified: true,
   },
   {
     id: '2',
@@ -55,6 +61,9 @@ const mockVendors: VendorData[] = [
     approved: true,
     blocked: false,
     createdAt: '2023-02-15',
+    gst: '27AABCT5678B2Z6',
+    equipmentCount: 32,
+    verified: true,
   },
   {
     id: '3',
@@ -65,6 +74,9 @@ const mockVendors: VendorData[] = [
     approved: false,
     blocked: false,
     createdAt: '2024-01-05',
+    gst: '06AABCM1234D3Z7',
+    equipmentCount: 0,
+    verified: false,
   },
 ]
 
@@ -88,7 +100,21 @@ const VendorManagementPage: React.FC = () => {
         const data = await response.json()
         
         if (data.success && data.vendors) {
-          setVendors(data.vendors)
+          // Map API response to VendorData format
+          const mappedVendors = data.vendors.map((vendor: any) => ({
+            id: vendor.id,
+            businessName: vendor.businessName,
+            ownerName: vendor.ownerName,
+            status: vendor.status || 'pending',
+            businessReg: vendor.businessReg || vendor.gst || '',
+            approved: vendor.approved || false,
+            blocked: vendor.blocked || false,
+            createdAt: vendor.createdAt,
+            gst: vendor.gst || vendor.businessReg || '',
+            equipmentCount: vendor.equipmentCount || 0,
+            verified: vendor.verified || false,
+          }))
+          setVendors(mappedVendors)
         }
       } catch (error) {
         console.error('Failed to fetch vendors:', error)

@@ -30,6 +30,8 @@ interface UserData {
   status: 'active' | 'suspended' | 'blocked'
   role: string
   createdAt: string
+  rating: number
+  bookings: number
 }
 
 const mockUsers: UserData[] = [
@@ -41,6 +43,8 @@ const mockUsers: UserData[] = [
     status: 'active',
     role: 'user',
     createdAt: '2023-01-15',
+    rating: 4.5,
+    bookings: 23,
   },
   {
     id: '2',
@@ -50,6 +54,8 @@ const mockUsers: UserData[] = [
     status: 'active',
     role: 'user',
     createdAt: '2023-02-20',
+    rating: 4.8,
+    bookings: 34,
   },
   {
     id: '3',
@@ -59,6 +65,8 @@ const mockUsers: UserData[] = [
     status: 'suspended',
     role: 'user',
     createdAt: '2023-03-10',
+    rating: 2.1,
+    bookings: 5,
   },
 ]
 
@@ -91,6 +99,8 @@ const UserManagementPage: React.FC = () => {
             status: user.status === 'blocked' ? 'blocked' : 'active',
             role: user.role,
             createdAt: user.createdAt,
+            rating: user.rating || 0,
+            bookings: user.bookings || 0,
           }))
           setUsers(mappedUsers)
         }
