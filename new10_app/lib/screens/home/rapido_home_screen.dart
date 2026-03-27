@@ -47,6 +47,11 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   bool _isLoadingOffer = false;
   bool _isRefreshingOffer = false;
 
+  // Sponsored Services Data
+  List<Map<String, dynamic>> _sponsoredServices = [];
+  bool _isLoadingSponsored = false;
+  bool _isRefreshingSponsored = false;
+
   // Mock data
   final List<Map<String, dynamic>> categories = [
     {'name': 'Excavators', 'id': 1},
@@ -145,11 +150,12 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
   Future<void> _fetchFreshDataInBackground() async {
     print('🔄 Fetching fresh data in background...');
     
-    // Start all 3 fetches in parallel
+    // Start all 4 fetches in parallel
     await Future.wait([
       _loadServicesFresh(),
       _loadBannerFresh(),
       _loadPromotionsFresh(),
+      _loadSponsoredServicesFresh(),
     ], eagerError: false);
     
     print('✅ Background data fetch complete');
@@ -271,6 +277,48 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
         });
       }
       print('⚠️ Error loading fresh promotions: $e');
+    }
+  }
+
+  // Fetch sponsored vendor services
+  Future<void> _loadSponsoredServicesFresh() async {
+    if (!mounted) return;
+    try {
+      setState(() => _isLoadingSponsored = true);
+
+      final response = await http
+          .get(
+            Uri.parse('https://new10-yk1r.onrender.com/api/sponsored-services'),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200 && mounted) {
+        final data = json.decode(response.body);
+        final List<dynamic> sponsoredList = data is List ? data : [];
+        
+        setState(() {
+          _sponsoredServices = sponsoredList
+              .map((item) => {
+                    'title': item['serviceName'] ?? 'Sponsored Service',
+                    'tag': 'Sponsored',
+                    'rating': 4.5, // Default rating
+                    'price': '₹${item['pricing'] ?? 'N/A'}/day',
+                    'businessName': item['businessName'] ?? 'Vendor',
+                    'isSponsored': true,
+                    'vendorId': item['vendorId'],
+                  })
+              .cast<Map<String, dynamic>>()
+              .toList();
+          _isLoadingSponsored = false;
+        });
+        
+        print('✅ Loaded ${_sponsoredServices.length} sponsored services');
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingSponsored = false);
+      }
+      print('⚠️ Error loading sponsored services: $e');
     }
   }
 
@@ -1161,7 +1209,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
     );
   }
 
-  // Popular Services
+  // Popular Services (includes sponsored vendors)
   Widget _buildPopularServices() {
     final serviceIcons = {
       'Excavator CAT 320': Icons.construction,
@@ -1170,128 +1218,187 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
       'Road Roller': Icons.engineering,
     };
 
+    // Merge sponsored services (first) with popular services
+    final List<Map<String, dynamic>> allServices = [
+      ..._sponsoredServices,
+      ...popularServices,
+    ];
+
     return Column(
       children: List.generate(
-        popularServices.length,
+        allServices.length,
         (index) {
-          final service = popularServices[index];
+          final service = allServices[index];
           final icon = serviceIcons[service['title']] ?? Icons.category;
+          final isSponsored = service['isSponsored'] ?? false;
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                color: Colors.grey.shade50,
-                border: Border.all(color: Colors.grey.shade200, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 6,
+            child: GestureDetector(
+              onTap: () {
+                // Navigate to service details or listing
+                if (isSponsored && service['vendorId'] != null) {
+                  // Navigate to vendor profile or service listing
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Sponsored service from ${service['businessName']}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.blue.shade600,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: isSponsored 
+                      ? Colors.blue.shade50 // Slightly blue tint for sponsored
+                      : Colors.grey.shade50,
+                  border: Border.all(
+                    color: isSponsored 
+                        ? Colors.blue.shade200
+                        : Colors.grey.shade200,
+                    width: 1,
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Image/Icon Container
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          AppTheme.primaryColor.withOpacity(0.15),
-                          AppTheme.primaryColor.withOpacity(0.05),
-                        ],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Image/Icon Container
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: isSponsored
+                              ? [
+                                  Colors.blue.shade300.withOpacity(0.15),
+                                  Colors.blue.shade300.withOpacity(0.05),
+                                ]
+                              : [
+                                  AppTheme.primaryColor.withOpacity(0.15),
+                                  AppTheme.primaryColor.withOpacity(0.05),
+                                ],
+                        ),
+                      ),
+                      child: Center(
+                        child: Icon(
+                          icon,
+                          size: 28,
+                          color: isSponsored
+                              ? Colors.blue.shade600
+                              : AppTheme.primaryColor,
+                        ),
                       ),
                     ),
-                    child: Center(
-                      child: Icon(
-                        icon,
-                        size: 28,
-                        color: AppTheme.primaryColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
 
-                  // Content
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                service['title'],
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black,
+                    // Content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  service['title'],
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                            if (service['tag'].isNotEmpty)
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
                                   vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withOpacity(0.2),
+                                  color: isSponsored
+                                      ? Colors.blue.shade600
+                                      : AppTheme.primaryColor.withOpacity(0.2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: Text(
-                                  service['tag'],
-                                  style: const TextStyle(
+                                  service['tag'] ?? '',
+                                  style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.black,
+                                    color: isSponsored
+                                        ? Colors.white
+                                        : Colors.black,
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.star,
-                              size: 14,
-                              color: Colors.amber,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${service['rating']}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black,
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                size: 14,
+                                color: Colors.amber,
                               ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              service['price'],
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.primaryDark,
+                              const SizedBox(width: 4),
+                              Text(
+                                '${service['rating']}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ],
+                              if (isSponsored && service['businessName'] != null) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    service['businessName'],
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ] else
+                                const Spacer(),
+                              Text(
+                                service['price'],
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isSponsored
+                                      ? Colors.blue.shade600
+                                      : AppTheme.primaryDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
