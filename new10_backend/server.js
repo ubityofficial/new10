@@ -1662,6 +1662,65 @@ app.post('/api/seed-test-data', async (req, res) => {
   }
 });
 
+// DIAGNOSTIC ENDPOINT - Check what's in the database
+app.get('/api/diagnostic', async (req, res) => {
+  try {
+    console.log('📊 Running diagnostic...');
+
+    // Check services table
+    const { data: services, error: sError } = await supabase
+      .from('services')
+      .select('id, name, category')
+      .limit(100);
+
+    // Check vendor_services table
+    const { data: vendorServices, error: vsError } = await supabase
+      .from('vendor_services')
+      .select('id, vendor_id, service_id')
+      .limit(100);
+
+    // Check vendors table
+    const { data: vendors, error: vError } = await supabase
+      .from('vendors')
+      .select('id, business_name, status')
+      .limit(100);
+
+    // Check users table
+    const { data: users, error: uError } = await supabase
+      .from('users')
+      .select('id, email, role')
+      .limit(100);
+
+    res.json({
+      status: 'diagnostic',
+      tables: {
+        services: {
+          count: services?.length || 0,
+          error: sError?.message,
+          sampleData: services?.slice(0, 3),
+        },
+        vendor_services: {
+          count: vendorServices?.length || 0,
+          error: vsError?.message,
+          sampleData: vendorServices?.slice(0, 3),
+        },
+        vendors: {
+          count: vendors?.length || 0,
+          error: vError?.message,
+          sampleData: vendors?.slice(0, 3),
+        },
+        users: {
+          count: users?.length || 0,
+          error: uError?.message,
+          sampleData: users?.slice(0, 3),
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });
