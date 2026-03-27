@@ -38,7 +38,9 @@ class ImagePreloadService {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseBody = json.decode(response.body);
-        final List<dynamic> services = responseBody['data'] ?? responseBody is List ? responseBody : [];
+        final List<dynamic> services = responseBody['data'] is List 
+          ? responseBody['data']
+          : responseBody is List ? responseBody : [];
         print('📥 Preloading ${services.length} services with images...');
         
         // Preload image1 and image2 for each service in parallel
