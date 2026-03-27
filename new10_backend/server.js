@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
 const { createClient } = require('@supabase/supabase-js');
 const authRoutes = require('./auth');
 const { initializeDatabase } = require('./initializeDatabase');
@@ -444,6 +445,7 @@ app.post('/api/settings', async (req, res) => {
         .from('promotions')
         .insert([
           {
+            id: uuidv4(),
             promotype: 'banner',
             bannerurl: bannerImageUrl,
             createdat: new Date().toISOString(),
@@ -594,6 +596,7 @@ app.post('/api/offer', async (req, res) => {
         .from('promotions')
         .insert([
           {
+            id: uuidv4(),
             promotype: 'offer',
             code: code.trim().toUpperCase(),
             discountpercent: discount,
