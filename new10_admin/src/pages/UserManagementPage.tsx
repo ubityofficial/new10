@@ -39,9 +39,8 @@ const mockUsers: UserData[] = [
     email: 'rajesh@email.com',
     phone: '+91-9876543210',
     status: 'active',
-    rating: 4.5,
-    bookings: 23,
-    joined: '2023-01-15',
+    role: 'user',
+    createdAt: '2023-01-15',
   },
   {
     id: '2',
@@ -49,9 +48,8 @@ const mockUsers: UserData[] = [
     email: 'priya@email.com',
     phone: '+91-9876543211',
     status: 'active',
-    rating: 4.8,
-    bookings: 34,
-    joined: '2023-02-20',
+    role: 'user',
+    createdAt: '2023-02-20',
   },
   {
     id: '3',
@@ -59,10 +57,10 @@ const mockUsers: UserData[] = [
     email: 'amit@email.com',
     phone: '+91-9876543212',
     status: 'suspended',
-    rating: 2.1,
-    bookings: 5,
-    joined: '2023-03-10',
+    role: 'user',
+    createdAt: '2023-03-10',
   },
+]
 
 const UserManagementPage: React.FC = () => {
   const { addNotification } = useStore()
