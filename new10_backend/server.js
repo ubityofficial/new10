@@ -1624,6 +1624,92 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });
 });
 
+// Quick endpoint to add services to existing vendor
+app.post('/api/add-services', async (req, res) => {
+  try {
+    console.log('📦 Adding services to existing vendor...');
+
+    // Get any existing vendor
+    const { data: vendors, error: vendorsFetchError } = await supabase
+      .from('vendors')
+      .select('id')
+      .eq('status', 'active')
+      .limit(1);
+
+    if (vendorsFetchError || !vendors || vendors.length === 0) {
+      return res.status(400).json({ error: 'No active vendors found. Run /api/seed-test-data first.' });
+    }
+
+    const vendorId = vendors[0].id;
+
+    // Create services
+    const serviceNames = ['Excavator', 'Bulldozer', 'Crane', 'Compressor', 'Generator'];
+    const createdServices = [];
+    const serviceErrors = [];
+
+    for (const name of serviceNames) {
+      const { data: service, error: serviceError } = await supabase
+        .from('services')
+        .insert({
+          id: uuidv4(),
+          name: name,
+          description: `High-quality ${name.toLowerCase()} for rent`,
+          category: 'Heavy Equipment',
+          image1: 'https://via.placeholder.com/400?text=' + name,
+          image2: 'https://via.placeholder.com/400?text=' + name + '2',
+          rating: 4.5,
+          reviews: Math.floor(Math.random() * 100) + 10,
+        })
+        .select()
+        .single();
+
+      if (serviceError) {
+        console.error('❌ Service insert error:', serviceError);
+        serviceErrors.push({ name, error: serviceError.message });
+      } else {
+        createdServices.push(service);
+        console.log('✅ Service created:', name, service.id);
+      }
+    }
+
+    // Create vendor_services for each service
+    const districts = ['Bangalore', 'Hyderabad', 'Chennai', 'Pune', 'Delhi'];
+    let vsCreated = 0;
+
+    for (let i = 0; i < createdServices.length; i++) {
+      const { error: vsError } = await supabase
+        .from('vendor_services')
+        .insert({
+          id: uuidv4(),
+          vendor_id: vendorId,
+          service_id: createdServices[i].id,
+          pricing: 5000 + (i * 1000),
+          duration: '8 hours',
+          location: districts[i % districts.length],
+          availability: true,
+        });
+
+      if (!vsError) {
+        vsCreated++;
+        console.log('✅ Vendor-service link created for:', createdServices[i].name);
+      } else {
+        console.error('❌ VS error:', vsError);
+      }
+    }
+
+    res.json({
+      success: true,
+      vendor_id: vendorId,
+      services_created: createdServices.length,
+      vendor_services_created: vsCreated,
+      service_errors: serviceErrors.length > 0 ? serviceErrors : undefined,
+    });
+  } catch (err) {
+    console.error('Error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err);
