@@ -159,21 +159,28 @@ const VendorManagementPage: React.FC = () => {
       if (actionType === 'approve' || actionType === 'reject') {
         apiUrl = `https://new10-yk1r.onrender.com/api/admin/vendors/${selectedVendor.id}/approve`
         requestBody = { approved: actionType === 'approve' }
-      } else if (actionType === 'suspend' || actionType === 'block') {
+      } else if (actionType === 'suspend') {
+        apiUrl = `https://new10-yk1r.onrender.com/api/admin/vendors/${selectedVendor.id}/suspend`
+        requestBody = { suspended: true }
+      } else if (actionType === 'block') {
         apiUrl = `https://new10-yk1r.onrender.com/api/admin/vendors/${selectedVendor.id}/block`
-        requestBody = { blocked: actionType === 'suspend' || actionType === 'block' }
+        requestBody = { blocked: true }
+      } else if (actionType === 'verify') {
+        apiUrl = '' // Verify doesn't need API call
       }
 
-      const response = await fetch(apiUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      })
+      if (apiUrl) {
+        const response = await fetch(apiUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        })
 
-      const data = await response.json()
+        const data = await response.json()
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to update vendor')
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to update vendor')
+        }
       }
 
       // Update local state only on success
@@ -347,14 +354,24 @@ const VendorManagementPage: React.FC = () => {
                           </Button>
                         )}
                         {vendor.status === 'approved' && (
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => handleActionOpen(vendor, 'suspend')}
-                            sx={{ color: '#FF9800', borderColor: '#FF9800' }}
-                          >
-                            Suspend
-                          </Button>
+                          <>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleActionOpen(vendor, 'suspend')}
+                              sx={{ color: '#FF9800', borderColor: '#FF9800' }}
+                            >
+                              Suspend
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => handleActionOpen(vendor, 'block')}
+                              color="error"
+                            >
+                              Block
+                            </Button>
+                          </>
                         )}
                       </Stack>
                     </TableCell>

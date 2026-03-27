@@ -976,6 +976,34 @@ app.put('/api/admin/vendors/:vendorId/block', async (req, res) => {
   }
 });
 
+// UPDATE vendor suspend status
+app.put('/api/admin/vendors/:vendorId/suspend', async (req, res) => {
+  try {
+    const { suspended } = req.body;
+
+    const newStatus = suspended ? 'suspended' : 'active';
+
+    const { data: updatedVendor, error } = await supabase
+      .from('vendors')
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
+      .eq('id', req.params.vendorId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      message: `Vendor ${suspended ? 'suspended' : 'activated'}`,
+      vendor: updatedVendor,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });
