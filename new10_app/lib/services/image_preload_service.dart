@@ -37,7 +37,8 @@ class ImagePreloadService {
       ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
-        final List<dynamic> services = json.decode(response.body);
+        final Map<String, dynamic> responseBody = json.decode(response.body);
+        final List<dynamic> services = responseBody['data'] ?? responseBody is List ? responseBody : [];
         print('📥 Preloading ${services.length} services with images...');
         
         // Preload image1 and image2 for each service in parallel
