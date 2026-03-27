@@ -1013,6 +1013,278 @@ app.put('/api/admin/vendors/:vendorId/suspend', async (req, res) => {
   }
 });
 
+// ===== SPONSORSHIP SYSTEM ENDPOINTS =====
+
+// GET all active sponsored services (for public display)
+app.get('/api/sponsored-services', async (req, res) => {
+  try {
+    const now = new Date().toISOString();
+
+    // Get active sponsorships with their services and vendor info
+    const { data: sponsorships, error } = await supabase
+      .from('vendor_sponsorships')
+      .select(`
+        *,
+        vendor_services (
+          id,
+          vendor_id,
+          service_id,
+          pricing,
+          duration,
+          location,
+          availability,
+          services (
+            id,
+            name,
+            category,
+            description
+          ),
+          vendors (
+            id,
+            business_name,
+            gst,
+            status,
+            approved
+          )
+        )
+      `)
+      .eq('status', 'active')
+      .lte('start_date', now)
+      .gte('end_date', now)
+      .order('priority', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.log('Error fetching sponsored services:', error);
+      return res.json([]); // Return empty array if no sponsorships
+    }
+
+    // Format response with flattened data
+    const formattedData = (sponsorships || []).map(sponsorship => ({
+      sponsorshipId: sponsorship.id,
+      vendorId: sponsorship.vendor_services?.vendor_id,
+      serviceId: sponsorship.vendor_services?.service_id,
+      serviceName: sponsorship.vendor_services?.services?.name,
+      serviceCategory: sponsorship.vendor_services?.services?.category,
+      serviceDescription: sponsorship.vendor_services?.services?.description,
+      businessName: sponsorship.vendor_services?.vendors?.business_name,
+      pricing: sponsorship.vendor_services?.pricing,
+      duration: sponsorship.vendor_services?.duration,
+      location: sponsorship.vendor_services?.location,
+      availability: sponsorship.vendor_services?.availability,
+      isSponsored: true,
+      sponsorshipPriority: sponsorship.priority,
+      sponsorshipEndDate: sponsorship.end_date,
+    }));
+
+    res.json(formattedData);
+  } catch (err) {
+    console.error('Error in /api/sponsored-services:', err);
+    res.json([]);
+  }
+});
+
+// GET vendor's own sponsorships
+app.get('/api/vendor/sponsorships', async (req, res) => {
+  try {
+    const vendorId = req.headers['x-vendor-id'];
+
+    if (!vendorId) {
+      return res.status(401).json({ error: 'Vendor ID required' });
+    }
+
+    const { data: sponsorships, error } = await supabase
+      .from('vendor_sponsorships')
+      .select(`
+        *,
+        vendor_services (
+          id,
+          service_id,
+          services (id, name, category)
+        )
+      `)
+      .eq('vendor_id', vendorId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      sponsorships: sponsorships || [],
+      totalActive: (sponsorships || []).filter(s => s.status === 'active').length,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST vendor request sponsorship
+app.post('/api/vendor/sponsorship-request', async (req, res) => {
+  try {
+    const { vendorId, serviceId, packageDays = 30 } = req.body;
+
+    if (!vendorId || !serviceId) {
+      return res.status(400).json({ error: 'Vendor ID and Service ID required' });
+    }
+
+    // Verify vendor exists
+    const { data: vendor, error: vendorError } = await supabase
+      .from('vendors')
+      .select('id')
+      .eq('id', vendorId)
+      .single();
+
+    if (vendorError || !vendor) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    // Create sponsorship request (starts as 'pending')
+    const startDate = new Date();
+    const endDate = new Date(startDate.getTime() + packageDays * 24 * 60 * 60 * 1000);
+
+    const { data: newSponsorship, error: createError } = await supabase
+      .from('vendor_sponsorships')
+      .insert([
+        {
+          id: uuidv4(),
+          vendor_id: vendorId,
+          service_id: serviceId,
+          status: 'pending', // Requires admin approval
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString(),
+          amount_paid: 0,
+          payment_status: 'pending',
+          priority: 3, // Default priority (1 = highest)
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single();
+
+    if (createError) {
+      return res.status(400).json({ error: createError.message });
+    }
+
+    res.json({
+      success: true,
+      message: 'Sponsorship request submitted. Awaiting admin approval.',
+      sponsorship: newSponsorship,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET all sponsorships (admin only)
+app.get('/api/admin/sponsorships', async (req, res) => {
+  try {
+    const { status, vendor_id } = req.query;
+
+    let query = supabase
+      .from('vendor_sponsorships')
+      .select(`
+        *,
+        vendor_services (
+          id,
+          service_id,
+          services (id, name, category),
+          vendors (id, business_name, user_id)
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (vendor_id) {
+      query = query.eq('vendor_id', vendor_id);
+    }
+
+    const { data: sponsorships, error } = await query;
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      total: sponsorships?.length || 0,
+      pending: sponsorships?.filter(s => s.status === 'pending').length || 0,
+      active: sponsorships?.filter(s => s.status === 'active').length || 0,
+      sponsorships: sponsorships || [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST admin approve sponsorship
+app.post('/api/admin/sponsorships/:sponsorshipId/approve', async (req, res) => {
+  try {
+    const { sponsorshipId } = req.params;
+    const { amountPaid, priority = 2 } = req.body;
+
+    const { data: updated, error } = await supabase
+      .from('vendor_sponsorships')
+      .update({
+        status: 'active',
+        amount_paid: amountPaid || 0,
+        payment_status: 'completed',
+        priority,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', sponsorshipId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      message: 'Sponsorship approved and activated',
+      sponsorship: updated,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST admin reject sponsorship
+app.post('/api/admin/sponsorships/:sponsorshipId/reject', async (req, res) => {
+  try {
+    const { sponsorshipId } = req.params;
+    const { reason = 'Rejected by admin' } = req.body;
+
+    const { data: updated, error } = await supabase
+      .from('vendor_sponsorships')
+      .update({
+        status: 'rejected',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', sponsorshipId)
+      .select()
+      .single();
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      success: true,
+      message: 'Sponsorship rejected',
+      sponsorship: updated,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date() });

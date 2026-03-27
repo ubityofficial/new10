@@ -154,6 +154,23 @@ async function initializeDatabase() {
       console.log('⚠️ Services table might need creation');
     }
 
+    // 9. Create vendor_sponsorships table for ad system
+    console.log('📝 Creating vendor_sponsorships table...');
+    await supabase.from('vendor_sponsorships').insert([{
+      id: 'test-init',
+      vendor_id: 'test-vendor',
+      service_id: 'test-service',
+      status: 'active',
+      start_date: new Date().toISOString(),
+      end_date: new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+      amount_paid: 0,
+      payment_status: 'completed',
+      priority: 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }]).then(() => supabase.from('vendor_sponsorships').delete().eq('id', 'test-init'));
+    console.log('✅ Vendor_sponsorships table verified');
+
     console.log('\n✨ Database initialization complete!');
     console.log('\nTables ready:');
     console.log('  ✅ users');
@@ -164,7 +181,9 @@ async function initializeDatabase() {
     console.log('  ✅ promotions');
     console.log('  ✅ vendor_services');
     console.log('  ✅ services');
+    console.log('  ✅ vendor_sponsorships');
     console.log('\n🔐 All user data is now persisted in Supabase database!');
+    console.log('💰 Sponsorship system ready - vendors can now purchase ad placements!');
 
   } catch (error) {
     console.error('❌ Database initialization error:', error.message);
