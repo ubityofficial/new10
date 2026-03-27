@@ -250,57 +250,108 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 20),
 
-          // Services Browse Banner
-          GestureDetector(
-            onTap: () {
-              Navigator.pushNamed(context, '/services-browse');
-            },
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    AppTheme.primaryColor,
-                    AppTheme.primaryDark,
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
+          // Services Browse Banner with Top 3 Popular Cards
+          Row(
+            children: [
+              // Browse Services Banner
+              Expanded(
+                flex: 1,
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.pushNamed(context, '/services-browse');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          AppTheme.primaryColor,
+                          AppTheme.primaryDark,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Browse Services',
+                          'Browse',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: Colors.black,
                           ),
                         ),
-                        const SizedBox(height: 4),
                         const Text(
-                          'Find professional services from trusted vendors',
+                          'Services',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black87,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black,
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        const Icon(Icons.arrow_forward_ios, color: Colors.black, size: 18),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.arrow_forward_ios, color: Colors.black, size: 18),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              // Top 3 Popular Cards
+              Expanded(
+                flex: 2,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildPopularServiceCard(
+                        name: 'JCB',
+                        emoji: '🏗️',
+                        description: 'Backhoe Loader',
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/vendor-listing',
+                            arguments: 'JCB',
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      _buildPopularServiceCard(
+                        name: 'Trucks',
+                        emoji: '🚚',
+                        description: 'Heavy Transport',
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/vendor-listing',
+                            arguments: 'Trucks',
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 12),
+                      _buildPopularServiceCard(
+                        name: 'Road Roller',
+                        emoji: '⚙️',
+                        description: 'Pavement Compactor',
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            '/vendor-listing',
+                            arguments: 'Road Roller',
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // Categories
           Text(
@@ -331,44 +382,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Featured Equipment
-          Text(
-            'Featured Equipment',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 12),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: filteredEquipment.length,
-            itemBuilder: (context, index) {
-              final item = filteredEquipment[index];
-              return PremiumEquipmentCard(
-                id: item['id'],
-                name: item['name'],
-                category: item['category'],
-                vendor: item['vendor'],
-                price: item['price'].toDouble(),
-                rating: item['rating'],
-                reviews: item['reviews'],
-                location: item['location'],
-                available: item['available'],
-                imageEmoji: item['image'],
-                onTap: item['available']
-                    ? () {
-                        Navigator.pushNamed(
-                          context,
-                          '/equipment-detail',
-                          arguments: item['id'],
-                        );
-                      }
-                    : () {},
-              );
-            },
-          ),
         ],
       ),
     );
@@ -507,6 +520,63 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPopularServiceCard({
+    required String name,
+    required String emoji,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppTheme.primaryColor.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              emoji,
+              style: const TextStyle(fontSize: 48),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              name,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                description,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey[600],
+                  height: 1.2,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -112,4 +112,15 @@ class ServiceProvider extends ChangeNotifier {
       return null;
     }
   }
+
+  // Fetch vendors offering a specific service
+  Future<Map<String, dynamic>> fetchVendorsByService(String serviceName) async {
+    try {
+      return await ServiceApiClient.getVendorsByService(serviceName);
+    } catch (e) {
+      _error = 'Failed to load vendors: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
 }

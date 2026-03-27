@@ -1757,6 +1757,97 @@ app.post('/api/add-services', async (req, res) => {
   }
 });
 
+// GET vendors offering a specific service
+app.get('/api/vendors-by-service/:serviceName', async (req, res) => {
+  try {
+    const serviceName = req.params.serviceName;
+    const location = req.query.location; // Optional location filter
+
+    // First, get the service by name
+    const { data: service, error: serviceError } = await supabase
+      .from('services')
+      .select('id, name, category, image1, image2, emoji')
+      .ilike('name', serviceName)
+      .single();
+
+    if (serviceError || !service) {
+      return res.status(404).json({ error: 'Service not found' });
+    }
+
+    // Get all vendors offering this service
+    const { data: vendorServices, error: vsError } = await supabase
+      .from('vendor_services')
+      .select('vendor_id, pricing, duration, location, availability')
+      .eq('service_id', service.id);
+
+    if (vsError) {
+      return res.status(500).json({ error: vsError.message });
+    }
+
+    if (!vendorServices || vendorServices.length === 0) {
+      return res.json({
+        service: {
+          id: service.id,
+          name: service.name,
+          category: service.category,
+          image1: service.image1,
+          image2: service.image2,
+          emoji: service.emoji || '🏗️',
+        },
+        vendors: []
+      });
+    }
+
+    // Get vendor details
+    const vendorIds = vendorServices.map(vs => vs.vendor_id);
+    const { data: vendors, error: vendorsError } = await supabase
+      .from('vendors')
+      .select('id, business_name, status, profile_image')
+      .in('id', vendorIds);
+
+    if (vendorsError) {
+      return res.status(500).json({ error: vendorsError.message });
+    }
+
+    // Merge vendor services with vendor details
+    let vendorList = vendorServices.map(vs => {
+      const vendorDetail = vendors.find(v => v.id === vs.vendor_id) || {};
+      return {
+        vendor_id: vs.vendor_id,
+        business_name: vendorDetail.business_name || 'Unknown',
+        status: vendorDetail.status || 'inactive',
+        pricing: vs.pricing,
+        duration: vs.duration,
+        location: vs.location,
+        availability: vs.availability,
+        isOnline: vendorDetail.status === 'active',
+      };
+    });
+
+    // Filter by location if provided
+    if (location) {
+      vendorList = vendorList.filter(v => 
+        v.location && v.location.toLowerCase().includes(location.toLowerCase())
+      );
+    }
+
+    res.json({
+      service: {
+        id: service.id,
+        name: service.name,
+        category: service.category,
+        image1: service.image1,
+        image2: service.image2,
+        emoji: service.emoji || '🏗️',
+      },
+      vendors: vendorList
+    });
+  } catch (err) {
+    console.error('Error in /api/vendors-by-service:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err);

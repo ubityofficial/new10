@@ -5,6 +5,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/registration_screen.dart';
 import 'screens/home/rapido_home_screen.dart';
 import 'screens/home/services_browse_screen.dart';
+import 'screens/listing/vendor_listing_page.dart';
 import 'screens/address/address_management_screen.dart';
 import 'screens/search/location_search_screen.dart';
 import 'screens/vendor/vendor_dashboard_screen.dart';
@@ -14,6 +15,7 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/bookings/my_bookings_screen.dart';
 import 'screens/checkout/checkout_screen.dart';
 import 'providers/auth_provider.dart';
+import 'providers/service_provider.dart';
 import 'theme/app_theme.dart';
 import 'services/image_preload_service.dart';
 
@@ -50,6 +52,9 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(
           create: (_) => AuthProvider()..initializeAuth(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ServiceProvider(),
         ),
       ],
       child: MaterialApp(
@@ -96,6 +101,12 @@ class MyApp extends StatelessWidget {
             final bookingData = settings.arguments as Map<String, dynamic>;
             return MaterialPageRoute(
               builder: (context) => CheckoutScreen(bookingData: bookingData),
+            );
+          }
+          if (settings.name == '/vendor-listing') {
+            final serviceName = settings.arguments as String;
+            return MaterialPageRoute(
+              builder: (context) => VendorListingPage(serviceName: serviceName),
             );
           }
           return null;

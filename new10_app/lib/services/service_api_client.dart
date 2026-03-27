@@ -85,4 +85,38 @@ class ServiceApiClient {
       return {};
     }
   }
+
+  /// Fetch vendors offering a specific service
+  static Future<Map<String, dynamic>> getVendorsByService(String serviceName, {String? location}) async {
+    try {
+      String url = '$baseUrl/vendors-by-service/$serviceName';
+      if (location != null) {
+        url += '?location=$location';
+      }
+      
+      print('🔵 Fetching vendors from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      print('🟢 Vendors response status: ${response.statusCode}');
+      print('🟢 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        print('🟢 Loaded vendors for service: $serviceName');
+        return jsonData;
+      } else {
+        print('🔴 Error: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to load vendors: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('🔴 Exception fetching vendors: $e');
+      rethrow;
+    }
+  }
 }
