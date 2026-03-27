@@ -1,13 +1,13 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Create Supabase client if credentials available
 let supabase = null;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn('⚠️ SUPABASE_URL or SUPABASE_KEY not set - database initialization skipped');
+  console.warn('⚠️ SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY not set - database initialization skipped');
   console.warn('⚠️ Please set these environment variables in your deployment settings');
 } else {
   supabase = createClient(supabaseUrl, supabaseKey);
@@ -26,28 +26,28 @@ async function initializeDatabase() {
 
     // 1. Create users table
     console.log('📝 Creating users table...');
-    const { error: usersError } = await supabase.rpc('exec_sql', {
-      sql: `
-        CREATE TABLE IF NOT EXISTS users (
-          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
-          email TEXT UNIQUE NOT NULL,
-          password TEXT NOT NULL,
-          name TEXT NOT NULL,
-          phone TEXT,
-          role TEXT NOT NULL CHECK (role IN ('user', 'vendor', 'admin')),
-          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked', 'suspended')),
-          profile_image TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        
-        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-        CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-      `
-    }).catch(() => ({ error: null })); // Ignore if function doesn't exist
-
-    // Fallback: create using standard method
-    if (usersError) {
+    try {
+      await supabase.rpc('exec_sql', {
+        sql: `
+          CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            name TEXT NOT NULL,
+            phone TEXT,
+            role TEXT NOT NULL CHECK (role IN ('user', 'vendor', 'admin')),
+            status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'blocked', 'suspended')),
+            profile_image TEXT,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+          
+          CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+          CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+        `
+      });
+      console.log('✅ Users table created');
+    } catch (err) {
       console.log('⚠️ RPC method not available, using standard table creation...');
       await supabase.from('users').insert([{
         id: 'test-init',
@@ -58,8 +58,6 @@ async function initializeDatabase() {
         status: 'active'
       }]).then(() => supabase.from('users').delete().eq('id', 'test-init'));
       console.log('✅ Users table verified');
-    } else {
-      console.log('✅ Users table created');
     }
 
     // 2. Create vendors table

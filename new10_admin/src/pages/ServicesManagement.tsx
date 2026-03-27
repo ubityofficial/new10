@@ -78,9 +78,7 @@ const ServicesManagement = () => {
     try {
       setLoading(true);
       const response = await axios.get<any>(`${API_BASE_URL}/services`);
-      const servicesData = Array.isArray(response.data) 
-        ? response.data 
-        : response.data?.data || [];
+      const servicesData = response.data?.data || [];
       setServices(servicesData);
     } catch (err) {
       const error = err as AxiosError<any>;

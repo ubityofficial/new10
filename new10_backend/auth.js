@@ -125,8 +125,8 @@ const authRoutes = (app, supabase) => {
               business_name: name,
               business_registration: null,
               gst: null,
-              status: 'active',
-              approved: false,
+              status: 'approved',
+              approved: true,
               blocked: false,
             }
           ])
@@ -148,7 +148,7 @@ const authRoutes = (app, supabase) => {
 
       console.log(`✅ User registered: ${email} (${role})`);
 
-      return res.json({
+      const response = {
         success: true,
         message: 'User registered successfully',
         user: {
@@ -158,7 +158,19 @@ const authRoutes = (app, supabase) => {
           role: newUser.role,
         },
         token,
-      });
+      };
+
+      // If vendor, include vendor data in response
+      if (role === 'vendor' && newVendor) {
+        response.vendor = {
+          id: newVendor.id,
+          business_name: newVendor.business_name,
+          status: newVendor.status,
+          approved: newVendor.approved,
+        };
+      }
+
+      return res.json(response);
 
     } catch (error) {
       console.error('❌ Register error:', error);

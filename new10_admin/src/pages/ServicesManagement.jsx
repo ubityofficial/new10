@@ -61,7 +61,7 @@ const ServicesManagement = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_BASE_URL}/services`);
-      setServices(response.data || []);
+      setServices(response.data?.data || []);
     } catch (err) {
       setError('Failed to fetch services: ' + (err.response?.data?.message || err.message));
       console.error(err);
