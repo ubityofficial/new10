@@ -54,10 +54,10 @@ app.get('/api/services', async (req, res) => {
 
     console.log('Fetching services...');
 
-    // Fetch ALL services from services table - be explicit about columns
+    // Fetch ALL services from services table - careful with columns
     const { data: allServices, error: sError } = await supabase
       .from('services')
-      .select('id, name, description, category, image1, image2, rating, reviews, created_at')
+      .select('id, name, description, category, image1, image2, created_at')
       .order('created_at', { ascending: false });
 
     if (sError) {
@@ -79,8 +79,8 @@ app.get('/api/services', async (req, res) => {
       category: service.category || '',
       image1: service.image1 || '',
       image2: service.image2 || '',
-      rating: service.rating || 0,
-      reviews: service.reviews || 0,
+      rating: 0,
+      reviews: 0,
       vendorId: null,
       vendorName: 'System Service',
       location: 'All Districts',
