@@ -22,7 +22,8 @@ class ServiceApiClient {
       print('🟢 Response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final List<dynamic> jsonData = json.decode(response.body);
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        final List<dynamic> jsonData = jsonResponse['data'] ?? (jsonResponse is List ? jsonResponse : []);
         print('🟢 Parsed ${jsonData.length} services');
         return jsonData.map((item) => Service.fromJson(item)).toList();
       } else {
