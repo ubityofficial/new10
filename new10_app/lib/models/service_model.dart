@@ -7,6 +7,16 @@ class Service {
   final String? image2;
   final double rating;
   final int reviews;
+  
+  // New fields for vendor and listing info
+  final String vendorId;
+  final String vendorName; // Business name (e.g., "SLV Machineries")
+  final String location; // District/Location
+  final double? pricePerHour;
+  final double? pricePerDay;
+  final bool isOnline; // Vendor online status
+  final String? emoji; // Emoji or icon identifier
+  final String serviceType; // Type of service/equipment
 
   Service({
     required this.id,
@@ -17,6 +27,14 @@ class Service {
     this.image2,
     this.rating = 0.0,
     this.reviews = 0,
+    this.vendorId = '',
+    this.vendorName = 'Vendor',
+    this.location = 'Karnataka',
+    this.pricePerHour,
+    this.pricePerDay,
+    this.isOnline = false,
+    this.emoji,
+    this.serviceType = 'Equipment',
   });
 
   factory Service.fromJson(Map<String, dynamic> json) {
@@ -29,6 +47,14 @@ class Service {
       image2: json['image2'],
       rating: (json['rating'] ?? 0).toDouble(),
       reviews: json['reviews'] ?? 0,
+      vendorId: json['vendorId'] ?? json['vendor_id'] ?? '',
+      vendorName: json['vendorName'] ?? json['vendor_name'] ?? 'Vendor',
+      location: json['location'] ?? json['district'] ?? 'Karnataka',
+      pricePerHour: json['pricePerHour'] != null ? (json['pricePerHour'] as num).toDouble() : null,
+      pricePerDay: json['pricePerDay'] != null ? (json['pricePerDay'] as num).toDouble() : null,
+      isOnline: json['isOnline'] ?? json['is_online'] ?? false,
+      emoji: json['emoji'],
+      serviceType: json['serviceType'] ?? json['service_type'] ?? 'Equipment',
     );
   }
 
@@ -42,6 +68,14 @@ class Service {
       'image2': image2,
       'rating': rating,
       'reviews': reviews,
+      'vendorId': vendorId,
+      'vendorName': vendorName,
+      'location': location,
+      'pricePerHour': pricePerHour,
+      'pricePerDay': pricePerDay,
+      'isOnline': isOnline,
+      'emoji': emoji,
+      'serviceType': serviceType,
     };
   }
 }
