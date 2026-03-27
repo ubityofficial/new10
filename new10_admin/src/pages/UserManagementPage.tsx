@@ -138,31 +138,58 @@ const UserManagementPage: React.FC = () => {
     setActionReason('')
   }
 
-  const handleActionConfirm = () => {
+  const handleActionConfirm = async () => {
     if (!selectedUser || !actionType) return
 
-    const updatedUsers: UserData[] = users.map((user) => {
-      if (user.id === selectedUser.id) {
-        if (actionType === 'activate') {
-          return { ...user, status: 'active' as const }
-        } else if (actionType === 'suspend') {
-          return { ...user, status: 'suspended' as const }
-        } else if (actionType === 'block') {
-          return { ...user, status: 'blocked' as const }
+    try {
+      // Send API request to update user status
+      const response = await fetch(
+        `https://new10-yk1r.onrender.com/api/admin/users/${selectedUser.id}/status`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: actionType === 'activate' ? 'active' : actionType === 'suspend' ? 'suspended' : 'blocked' }),
         }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update user status')
       }
-      return user
-    })
 
-    setUsers(updatedUsers)
-    setActionDialogOpen(false)
+      // Update local state only on success
+      const updatedUsers: UserData[] = users.map((user) => {
+        if (user.id === selectedUser.id) {
+          if (actionType === 'activate') {
+            return { ...user, status: 'active' as const }
+          } else if (actionType === 'suspend') {
+            return { ...user, status: 'suspended' as const }
+          } else if (actionType === 'block') {
+            return { ...user, status: 'blocked' as const }
+          }
+        }
+        return user
+      })
 
-    addNotification({
-      id: Date.now().toString(),
-      type: 'success',
-      message: `User ${actionType === 'activate' ? 'activated' : actionType === 'suspend' ? 'suspended' : 'blocked'} successfully`,
-      timestamp: new Date(),
-    })
+      setUsers(updatedUsers)
+      setActionDialogOpen(false)
+
+      addNotification({
+        id: Date.now().toString(),
+        type: 'success',
+        message: `User ${actionType === 'activate' ? 'activated' : actionType === 'suspend' ? 'suspended' : 'blocked'} successfully`,
+        timestamp: new Date(),
+      })
+    } catch (error) {
+      console.error('Error updating user:', error)
+      addNotification({
+        id: Date.now().toString(),
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to update user',
+        timestamp: new Date(),
+      })
+    }
   }
 
   const getStatusColor = (status: string) => {

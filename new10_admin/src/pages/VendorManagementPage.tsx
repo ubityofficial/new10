@@ -149,35 +149,69 @@ const VendorManagementPage: React.FC = () => {
     setActionReason('')
   }
 
-  const handleActionConfirm = () => {
+  const handleActionConfirm = async () => {
     if (!selectedVendor || !actionType) return
 
-    const updatedVendors: VendorData[] = vendors.map((vendor) => {
-      if (vendor.id === selectedVendor.id) {
-        if (actionType === 'approve') {
-          return { ...vendor, status: 'approved' as const }
-        } else if (actionType === 'reject') {
-          return { ...vendor, status: 'blocked' as const }
-        } else if (actionType === 'suspend') {
-          return { ...vendor, status: 'suspended' as const }
-        } else if (actionType === 'block') {
-          return { ...vendor, status: 'blocked' as const }
-        } else if (actionType === 'verify') {
-          return { ...vendor, verified: true }
-        }
+    try {
+      let apiUrl = ''
+      let requestBody: any = {}
+
+      if (actionType === 'approve' || actionType === 'reject') {
+        apiUrl = `https://new10-yk1r.onrender.com/api/admin/vendors/${selectedVendor.id}/approve`
+        requestBody = { approved: actionType === 'approve' }
+      } else if (actionType === 'suspend' || actionType === 'block') {
+        apiUrl = `https://new10-yk1r.onrender.com/api/admin/vendors/${selectedVendor.id}/block`
+        requestBody = { blocked: actionType === 'suspend' || actionType === 'block' }
       }
-      return vendor
-    })
 
-    setVendors(updatedVendors)
-    setActionDialogOpen(false)
+      const response = await fetch(apiUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      })
 
-    addNotification({
-      id: Date.now().toString(),
-      type: 'success',
-      message: `Vendor ${actionType} successful`,
-      timestamp: new Date(),
-    })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update vendor')
+      }
+
+      // Update local state only on success
+      const updatedVendors: VendorData[] = vendors.map((vendor) => {
+        if (vendor.id === selectedVendor.id) {
+          if (actionType === 'approve') {
+            return { ...vendor, status: 'approved' as const, approved: true }
+          } else if (actionType === 'reject') {
+            return { ...vendor, status: 'blocked' as const, blocked: true }
+          } else if (actionType === 'suspend') {
+            return { ...vendor, status: 'suspended' as const }
+          } else if (actionType === 'block') {
+            return { ...vendor, status: 'blocked' as const, blocked: true }
+          } else if (actionType === 'verify') {
+            return { ...vendor, verified: true }
+          }
+        }
+        return vendor
+      })
+
+      setVendors(updatedVendors)
+      setActionDialogOpen(false)
+
+      addNotification({
+        id: Date.now().toString(),
+        type: 'success',
+        message: `Vendor ${actionType} successful`,
+        timestamp: new Date(),
+      })
+    } catch (error) {
+      console.error('Error updating vendor:', error)
+      addNotification({
+        id: Date.now().toString(),
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to update vendor',
+        timestamp: new Date(),
+      })
+    }
   }
 
   const getStatusColor = (status: string) => {
