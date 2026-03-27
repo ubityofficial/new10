@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
+const { authRoutes } = require('./auth');
 require('dotenv').config();
 
 const app = express();
@@ -19,6 +20,9 @@ app.use(express.urlencoded({ limit: '50mb' }));
 // Multer config (for temporary file handling)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+// ============ INITIALIZE AUTH ROUTES ============
+authRoutes(app, supabase);
 
 // Mock database (for vendor services)
 let vendorServices = [
