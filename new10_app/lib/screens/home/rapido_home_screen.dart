@@ -118,7 +118,7 @@ class _RapidoHomeScreenState extends State<RapidoHomeScreen>
 
   Future<void> _preloadServiceImages(List<Service> services) async {
     // Preload ALL service images in parallel for faster display
-    final futures = <Future>[]
+    final futures = <Future>[];
     
     for (var service in services) {
       if (service.image1 != null && service.image1!.isNotEmpty) {
