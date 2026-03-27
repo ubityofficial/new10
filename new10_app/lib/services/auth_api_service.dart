@@ -32,8 +32,9 @@ class AuthApiService {
       print('🟢 Register response: ${response.statusCode}');
       print('🟢 Response body: ${response.body}');
 
+      final data = json.decode(response.body);
+
       if (response.statusCode == 201 || response.statusCode == 200) {
-        final data = json.decode(response.body);
         if (data['token'] != null) {
           // Save token to shared preferences
           final prefs = await SharedPreferences.getInstance();
