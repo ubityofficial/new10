@@ -384,20 +384,20 @@ app.get('/api/settings', async (req, res) => {
       .from('promotions')
       .select('*')
       .eq('promoType', 'banner')
-      .order('createdAt', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1);
 
     if (error || !data || data.length === 0) {
       // Return default settings
       return res.json({
         bannerImageUrl: 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80',
-        updatedAt: new Date(),
+        updated_at: new Date(),
       });
     }
 
     res.json({
       bannerImageUrl: data[0].bannerUrl,
-      updatedAt: data[0].updatedAt,
+      updated_at: data[0].updated_at,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -434,7 +434,7 @@ app.post('/api/settings', async (req, res) => {
         .from('promotions')
         .update({
           bannerUrl: bannerImageUrl,
-          updatedAt: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', existing[0].id)
         .select()
@@ -446,8 +446,8 @@ app.post('/api/settings', async (req, res) => {
           {
             promoType: 'banner',
             bannerUrl: bannerImageUrl,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
         ])
         .select()
@@ -462,7 +462,7 @@ app.post('/api/settings', async (req, res) => {
       message: 'Settings updated successfully',
       settings: {
         bannerImageUrl: result.data.bannerUrl,
-        updatedAt: result.data.updatedAt,
+        updated_at: result.data.updated_at,
       },
     });
   } catch (err) {
@@ -516,7 +516,7 @@ app.get('/api/offer', async (req, res) => {
       .select('*')
       .eq('promoType', 'offer')
       .eq('active', true)
-      .order('createdAt', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1);
 
     if (error) {
@@ -578,7 +578,7 @@ app.post('/api/offer', async (req, res) => {
           discountPercent: discount,
           description: description || 'Special discount offer',
           active: true,
-          updatedAt: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq('id', existing[0].id)
         .select()
@@ -594,7 +594,8 @@ app.post('/api/offer', async (req, res) => {
             discountPercent: discount,
             description: description || 'Special discount offer',
             active: true,
-            createdAt: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           },
         ])
         .select()
@@ -623,7 +624,7 @@ app.get('/api/promotions', async (req, res) => {
       .from('promotions')
       .select('*')
       .eq('promoType', 'banner')
-      .order('createdAt', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1);
 
     // Get active offer
@@ -632,13 +633,13 @@ app.get('/api/promotions', async (req, res) => {
       .select('*')
       .eq('promoType', 'offer')
       .eq('active', true)
-      .order('createdAt', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(1);
 
     // Provide fallback values if queries fail
     const banner = bannerData && bannerData.length > 0 
-      ? { url: bannerData[0].bannerUrl, updatedAt: bannerData[0].updatedAt }
-      : { url: 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80', updatedAt: new Date() };
+      ? { url: bannerData[0].bannerUrl, updated_at: bannerData[0].updated_at }
+      : { url: 'https://images.unsplash.com/photo-1581092163562-40f08642c5bc?w=500&h=350&fit=crop&q=80', updated_at: new Date() };
 
     const offer = offerData && offerData.length > 0
       ? offerData[0]
