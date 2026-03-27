@@ -50,25 +50,28 @@ let vendorServices = [
 // GET all services
 app.get('/api/services', async (req, res) => {
   try {
-    const { district, search, limit = 50, offset = 0 } = req.query;
+    const { search } = req.query;
 
-    // Fetch ALL services from services table
+    console.log('Fetching services...');
+
+    // Fetch ALL services from services table - be explicit about columns
     const { data: allServices, error: sError } = await supabase
       .from('services')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100);
+      .select('id, name, description, category, image1, image2, rating, reviews, created_at')
+      .order('created_at', { ascending: false });
 
     if (sError) {
       console.error('Error fetching services:', sError);
-      return res.status(500).json({ error: sError.message });
+      return res.status(500).json({ error: 'DB Error: ' + sError.message });
     }
+
+    console.log('Found services:', allServices?.length || 0);
 
     if (!allServices || allServices.length === 0) {
       return res.json([]);
     }
 
-    // Format services - simple version for now
+    // Format services - simple version
     let formatted = allServices.map(service => ({
       id: service.id || '',
       name: service.name || '',
@@ -89,7 +92,7 @@ app.get('/api/services', async (req, res) => {
     }));
 
     // Apply search filter if provided
-    if (search && search.trim()) {
+    if (search && typeof search === 'string' && search.trim()) {
       const searchLower = search.toLowerCase();
       formatted = formatted.filter(s =>
         (s.name && s.name.toLowerCase().includes(searchLower)) ||
@@ -97,16 +100,11 @@ app.get('/api/services', async (req, res) => {
       );
     }
 
-    // Apply pagination
-    const start = parseInt(offset as string) || 0;
-    const pageLimit = parseInt(limit as string) || 50;
-    const end = start + pageLimit;
-    formatted = formatted.slice(start, end);
-
+    console.log('Returning formatted services:', formatted.length);
     res.json(formatted);
   } catch (err) {
-    console.error('Error in /api/services:', err);
-    res.status(500).json({ error: (err as any).message });
+    console.error('Error in /api/services catch:', err);
+    res.status(500).json({ error: 'Error: ' + (err as any).message });
   }
 });
 
