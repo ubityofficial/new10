@@ -80,8 +80,8 @@ class AuthProvider extends ChangeNotifier {
         await prefs.setString('user_role', _userRole);
 
         if (!_isUser) {
-          // Vendor login - extract vendor ID
-          _vendorId = result['data']['vendor_id'] ?? user['id'] ?? '';
+          // Vendor login - extract vendor ID from vendor object
+          _vendorId = result['data']['vendor']?['id'] ?? '';
           await prefs.setString('vendor_id', _vendorId);
           print('✅ Vendor login successful, ID: $_vendorId');
         } else {
@@ -144,8 +144,8 @@ class AuthProvider extends ChangeNotifier {
         await prefs.setString('user_role', _userRole);
 
         if (!_isUser) {
-          // Vendor registration - extract vendor ID
-          _vendorId = result['data']['vendor_id'] ?? user['id'] ?? '';
+          // Vendor login - extract vendor ID from vendor object
+          _vendorId = result['data']['vendor']?['id'] ?? '';
           await prefs.setString('vendor_id', _vendorId);
           print('✅ Vendor registration successful, ID: $_vendorId');
         } else {
