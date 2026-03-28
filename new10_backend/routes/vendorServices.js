@@ -168,9 +168,16 @@ router.post('/vendor/:vendorId/services', async (req, res) => {
       .select();
 
     if (insertError) {
-      console.error('Insert error:', insertError);
-      return res.status(500).json({ error: 'Failed to add service' });
+      console.error('❌ Insert error:', insertError);
+      console.error('Error message:', insertError.message);
+      console.error('Error details:', JSON.stringify(insertError, null, 2));
+      return res.status(500).json({ 
+        error: 'Failed to add service: ' + insertError.message,
+        details: insertError
+      });
     }
+
+    console.log('✅ Service added successfully:', newService);
 
     return res.status(201).json({
       success: true,
