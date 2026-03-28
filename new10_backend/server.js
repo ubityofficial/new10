@@ -1797,6 +1797,8 @@ app.get('/api/vendors-by-service/:serviceName', async (req, res) => {
       .ilike('name', serviceName)
       .single();
 
+    console.log('Service found:', service?.id, service?.name);
+
     if (serviceError || !service) {
       // If service not found, return mock service with mock vendors
       const mockData = mockVendorData[serviceName] || { vendors: [] };
@@ -1822,8 +1824,11 @@ app.get('/api/vendors-by-service/:serviceName', async (req, res) => {
       .eq('service_id', service.id);
 
     if (vsError) {
-      return res.status(500).json({ error: vsError.message });
+      console.error('❌ Error fetching vendor_services:', vsError);
+      return res.status(500).json({ error: 'Failed to fetch vendors: ' + vsError.message, code: vsError.code });
     }
+
+    console.log('Vendor services found:', vendorServices?.length || 0);
 
     if (!vendorServices || vendorServices.length === 0) {
       return res.json({
@@ -1847,7 +1852,8 @@ app.get('/api/vendors-by-service/:serviceName', async (req, res) => {
       .in('id', vendorIds);
 
     if (vendorsError) {
-      return res.status(500).json({ error: vendorsError.message });
+      console.error('❌ Error fetching vendors:', vendorsError);
+      return res.status(500).json({ error: 'Failed to fetch vendor details: ' + vendorsError.message, code: vendorsError.code });
     }
 
     // Merge vendor services with vendor details
