@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:provider/provider.dart';
 import '../../models/service_model.dart';
 import '../../models/vendor_service_model.dart';
 import '../../theme/app_theme.dart';
 import '../../services/service_api_client.dart';
+import '../../providers/auth_provider.dart';
 
 class VendorServicesManagementScreenNew extends StatefulWidget {
   const VendorServicesManagementScreenNew({super.key});
@@ -26,9 +28,6 @@ class _VendorServicesManagementScreenNewState
   // Vendor's selected services
   List<VendorService> _myServices = [];
   bool _isLoadingMyServices = false;
-
-  // Temporary vendor ID (in real app, from auth)
-  final String _vendorId = 'vendor_123';
 
   @override
   void initState() {
@@ -78,6 +77,19 @@ class _VendorServicesManagementScreenNewState
   }
 
   void _openAddServiceForm(Service service) {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final vendorId = authProvider.vendorId;
+
+    if (vendorId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: Vendor ID not found. Please log in again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -86,7 +98,7 @@ class _VendorServicesManagementScreenNewState
       ),
       builder: (context) => _AddServiceFormSheet(
         service: service,
-        vendorId: _vendorId,
+        vendorId: vendorId,
         onAdd: (vendorService) {
           setState(() {
             _myServices.add(vendorService);
