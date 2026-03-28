@@ -65,6 +65,82 @@ app.get('/api/services-test', async (req, res) => {
   }
 });
 
+// TEST: Add dummy vendor service directly
+app.post('/api/test/add-dummy-vendor-service', async (req, res) => {
+  try {
+    console.log('🧪 TEST: Adding dummy vendor service...');
+
+    // Get first vendor and first service
+    const { data: vendors } = await supabase
+      .from('vendors')
+      .select('id, status')
+      .limit(1);
+
+    if (!vendors || vendors.length === 0) {
+      return res.status(400).json({ error: 'No vendors found. Add a vendor first.' });
+    }
+
+    const vendorId = vendors[0].id;
+    console.log('✅ Using vendor:', vendorId, 'status:', vendors[0].status);
+
+    const { data: services } = await supabase
+      .from('services')
+      .select('id, name')
+      .limit(1);
+
+    if (!services || services.length === 0) {
+      return res.status(400).json({ error: 'No services found. Add services first.' });
+    }
+
+    const serviceId = services[0].id;
+    console.log('✅ Using service:', serviceId, 'name:', services[0].name);
+
+    // Try to insert into vendor_services
+    const { data: inserted, error: insertError } = await supabase
+      .from('vendor_services')
+      .insert([
+        {
+          vendor_id: vendorId,
+          service_id: serviceId,
+          pricing: 500.00,
+          pricing_unit: 'per day',
+          location: 'Bangalore',
+          availability: 'available',
+          start_time: '08:00',
+          end_time: '18:00',
+          is_online: true,
+          is_active: true,
+        },
+      ])
+      .select();
+
+    if (insertError) {
+      console.error('❌ INSERT ERROR:', insertError);
+      return res.status(500).json({ 
+        success: false,
+        error: insertError.message,
+        code: insertError.code,
+        details: insertError
+      });
+    }
+
+    console.log('✅ INSERTED:', inserted);
+    res.json({
+      success: true,
+      message: 'Dummy vendor service created successfully!',
+      data: inserted
+    });
+
+  } catch (err) {
+    console.error('❌ UNEXPECTED ERROR:', err);
+    res.status(500).json({ 
+      success: false,
+      error: err.message 
+    });
+  }
+});
+
+
 app.get('/api/services', async (req, res) => {
   try {
     const { search } = req.query;
