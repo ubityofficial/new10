@@ -106,10 +106,9 @@ app.post('/api/test/add-dummy-vendor-service', async (req, res) => {
           pricing_unit: 'per day',
           location: 'Bangalore',
           availability: 'available',
-          start_time: '08:00',
-          end_time: '18:00',
           is_online: true,
           is_active: true,
+          // Note: start_time and end_time are optional, removed to avoid schema cache issues
         },
       ])
       .select();

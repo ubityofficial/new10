@@ -159,10 +159,11 @@ router.post('/vendor/:vendorId/services', async (req, res) => {
           pricing_unit: pricing_unit || 'per day',
           location: location.trim(),
           availability: availability || 'available',
-          start_time: start_time || '08:00',
-          end_time: end_time || '18:00',
           is_online: true,
           is_active: true,
+          // Optional working hours - only if provided
+          ...(start_time && { start_time }),
+          ...(end_time && { end_time }),
         },
       ])
       .select();
