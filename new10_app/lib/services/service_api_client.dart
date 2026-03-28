@@ -120,4 +120,56 @@ class ServiceApiClient {
       rethrow;
     }
   }
+
+  /// Add a service for a vendor
+  static Future<Map<String, dynamic>> addVendorService({
+    required String vendorId,
+    required String serviceId,
+    required double pricing,
+    required String pricingUnit,
+    required String location,
+    required String availability,
+    String? startTime,
+    String? endTime,
+  }) async {
+    try {
+      final url = '$baseUrl/vendor/$vendorId/services';
+      print('🔵 Adding vendor service to: $url');
+      
+      final payload = {
+        'service_id': serviceId,
+        'pricing': pricing,
+        'pricing_unit': pricingUnit,
+        'location': location,
+        'availability': availability,
+        if (startTime != null) 'start_time': startTime,
+        if (endTime != null) 'end_time': endTime,
+      };
+      
+      print('🔵 Payload: $payload');
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(payload),
+      ).timeout(const Duration(seconds: 10));
+
+      print('🟢 Response status: ${response.statusCode}');
+      print('🟢 Response body: ${response.body}');
+
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        print('🟢 Vendor service added successfully');
+        return jsonData;
+      } else {
+        print('🔴 Error: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to add vendor service: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('🔴 Exception adding vendor service: $e');
+      rethrow;
+    }
+  }
 }

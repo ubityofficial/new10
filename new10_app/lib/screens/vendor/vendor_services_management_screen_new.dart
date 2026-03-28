@@ -695,7 +695,7 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit() async {
     if (_priceController.text.isEmpty || _locationController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
@@ -703,23 +703,67 @@ class _AddServiceFormSheetState extends State<_AddServiceFormSheet> {
       return;
     }
 
-    final vendorService = VendorService(
-      id: const Uuid().v4(),
-      vendorId: widget.vendorId,
-      serviceId: widget.service.id,
-      serviceName: widget.service.name,
-      emoji: widget.service.emoji,
-      pricing: double.parse(_priceController.text),
-      pricingUnit: _pricingUnit,
-      location: _locationController.text,
-      availability: _availability,
-      startTime: _startTimeController.text,
-      endTime: _endTimeController.text,
-      isOnline: _isOnline,
-      createdAt: DateTime.now().toString(),
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
-    widget.onAdd(vendorService);
+    try {
+      // Call backend API to save vendor service
+      final response = await ServiceApiClient.addVendorService(
+        vendorId: widget.vendorId,
+        serviceId: widget.service.id,
+        pricing: double.parse(_priceController.text),
+        pricingUnit: _pricingUnit,
+        location: _locationController.text,
+        availability: _availability,
+        startTime: _startTimeController.text,
+        endTime: _endTimeController.text,
+      );
+
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+      }
+
+      // Create VendorService object from response
+      final vendorService = VendorService(
+        id: response['data']?['id'] ?? const Uuid().v4(),
+        vendorId: widget.vendorId,
+        serviceId: widget.service.id,
+        serviceName: widget.service.name,
+        emoji: widget.service.emoji,
+        pricing: double.parse(_priceController.text),
+        pricingUnit: _pricingUnit,
+        location: _locationController.text,
+        availability: _availability,
+        startTime: _startTimeController.text,
+        endTime: _endTimeController.text,
+        isOnline: _isOnline,
+        createdAt: DateTime.now().toString(),
+      );
+
+      if (mounted) {
+        widget.onAdd(vendorService);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${widget.service.name} added successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
