@@ -65,6 +65,49 @@ app.get('/api/services-test', async (req, res) => {
   }
 });
 
+// Setup endpoint: Create/fix vendor_services table columns
+app.post('/api/setup/fix-vendor-services-table', async (req, res) => {
+  try {
+    console.log('🔧 Fixing vendor_services table schema...');
+
+    // Try to add missing columns using raw SQL
+    const sqlStatements = [
+      `ALTER TABLE IF EXISTS vendor_services ADD COLUMN IF NOT EXISTS start_time TIME DEFAULT '08:00';`,
+      `ALTER TABLE IF EXISTS vendor_services ADD COLUMN IF NOT EXISTS end_time TIME DEFAULT '18:00';`,
+      `ALTER TABLE IF EXISTS vendor_services ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT TRUE;`,
+      `ALTER TABLE IF EXISTS vendor_services ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`,
+    ];
+
+    let allSuccess = true;
+    const results = [];
+
+    for (const sql of sqlStatements) {
+      try {
+        const { error } = await supabase.rpc('exec_sql', { sql });
+        if (error && error.message !== 'column exists') {
+          results.push({ sql: sql.substring(0, 50), error: error?.message });
+          allSuccess = false;
+        } else {
+          results.push({ sql: sql.substring(0, 50), success: true });
+        }
+      } catch (e) {
+        results.push({ sql: sql.substring(0, 50), error: e.message });
+      }
+    }
+
+    console.log('✅ Table fix results:', results);
+    res.json({
+      success: allSuccess,
+      message: allSuccess ? 'Vendor services table fixed!' : 'Some columns may not have been added',
+      results
+    });
+
+  } catch (err) {
+    console.error('❌ FIX ERROR:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // TEST: Add dummy vendor service directly
 app.post('/api/test/add-dummy-vendor-service', async (req, res) => {
   try {
@@ -95,7 +138,7 @@ app.post('/api/test/add-dummy-vendor-service', async (req, res) => {
     const serviceId = services[0].id;
     console.log('✅ Using service:', serviceId, 'name:', services[0].name);
 
-    // Try to insert into vendor_services
+    // Try to insert into vendor_services with MINIMAL fields only
     const { data: inserted, error: insertError } = await supabase
       .from('vendor_services')
       .insert([
@@ -105,10 +148,6 @@ app.post('/api/test/add-dummy-vendor-service', async (req, res) => {
           pricing: 500.00,
           pricing_unit: 'per day',
           location: 'Bangalore',
-          availability: 'available',
-          is_online: true,
-          is_active: true,
-          // Note: start_time and end_time are optional, removed to avoid schema cache issues
         },
       ])
       .select();
@@ -119,6 +158,7 @@ app.post('/api/test/add-dummy-vendor-service', async (req, res) => {
         success: false,
         error: insertError.message,
         code: insertError.code,
+        hint: 'Try running POST /api/setup/fix-vendor-services-table first',
         details: insertError
       });
     }

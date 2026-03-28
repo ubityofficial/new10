@@ -148,24 +148,23 @@ router.post('/vendor/:vendorId/services', async (req, res) => {
       });
     }
 
-    // Insert vendor service
+    // Insert vendor service - use MINIMAL required fields
+    const insertPayload = {
+      vendor_id: vendorId,
+      service_id: service_id,
+      pricing: parseFloat(pricing),
+      pricing_unit: pricing_unit || 'per day',
+      location: location.trim(),
+    };
+
+    // Optional fields - only add if provided
+    if (availability) insertPayload.availability = availability;
+    if (start_time) insertPayload.start_time = start_time;
+    if (end_time) insertPayload.end_time = end_time;
+
     const { data: newService, error: insertError } = await supabase
       .from('vendor_services')
-      .insert([
-        {
-          vendor_id: vendorId,
-          service_id: service_id,
-          pricing: parseFloat(pricing),
-          pricing_unit: pricing_unit || 'per day',
-          location: location.trim(),
-          availability: availability || 'available',
-          is_online: true,
-          is_active: true,
-          // Optional working hours - only if provided
-          ...(start_time && { start_time }),
-          ...(end_time && { end_time }),
-        },
-      ])
+      .insert([insertPayload])
       .select();
 
     if (insertError) {
@@ -174,6 +173,7 @@ router.post('/vendor/:vendorId/services', async (req, res) => {
       console.error('Error details:', JSON.stringify(insertError, null, 2));
       return res.status(500).json({ 
         error: 'Failed to add service: ' + insertError.message,
+        hint: 'The vendor_services table may be missing columns',
         details: insertError
       });
     }
