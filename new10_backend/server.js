@@ -1818,7 +1818,7 @@ app.get('/api/vendors-by-service/:serviceName', async (req, res) => {
     // Get all vendors offering this service
     const { data: vendorServices, error: vsError } = await supabase
       .from('vendor_services')
-      .select('vendor_id, pricing, duration, location, availability')
+      .select('vendor_id, pricing, pricing_unit, location, availability')
       .eq('service_id', service.id);
 
     if (vsError) {
