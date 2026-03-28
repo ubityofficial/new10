@@ -1858,7 +1858,7 @@ app.get('/api/vendors-by-service/:serviceName', async (req, res) => {
         business_name: vendorDetail.business_name || 'Unknown',
         status: vendorDetail.status || 'inactive',
         pricing: vs.pricing,
-        duration: vs.duration,
+        pricing_unit: vs.pricing_unit,
         location: vs.location,
         availability: vs.availability,
         isOnline: vendorDetail.status === 'active',
